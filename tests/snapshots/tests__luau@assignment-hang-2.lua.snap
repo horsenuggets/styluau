@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/assignment-hang-2.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/595
 exports.createResource = function(
@@ -13,8 +14,7 @@ exports.createResource = function(
 	pleasing = {
 		clear = function(): ()
 			entries[pleasing] = nil
-		end,
+		end
 	}
 	return pleasing
 end
-

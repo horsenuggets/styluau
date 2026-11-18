@@ -1,9 +1,9 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau-full_moon/types_semicolon_delimeter.lua
 ---
 type Foo = {
 	bar: number,
-	baz: number,
+	baz: number
 }
-

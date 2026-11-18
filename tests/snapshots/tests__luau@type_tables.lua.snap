@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type_tables.lua
 ---
 type PromptSettings = {
 	object: string,
@@ -10,12 +11,11 @@ type PromptSettings = {
 	gamepadKey: KeyCode,
 	distance: number,
 	lineOfSight: boolean,
-	offset: Vector2,
+	offset: Vector2
 }
 
 export type Sprite = {
 	Image: string,
 	ImageRectOffset: Vector2,
-	ImageRectSize: Vector2,
+	ImageRectSize: Vector2
 }
-

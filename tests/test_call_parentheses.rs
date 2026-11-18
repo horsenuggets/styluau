@@ -1,10 +1,11 @@
-use stylua_lib::{format_code, CallParenType, Config, OutputVerification};
+use styluau_lib::{format_code, CallParenType, Config, OutputVerification};
 
 fn format(call_parentheses: CallParenType, input: &str) -> String {
     format_code(
         input,
         Config {
             call_parentheses,
+            table_trailing_comma: true,
             ..Config::default()
         },
         None,

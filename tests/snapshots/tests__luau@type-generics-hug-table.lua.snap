@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-generics-hug-table.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/442
 export type Store = EventEmitter<{
@@ -12,6 +13,5 @@ export type Store = EventEmitter<{
 	supportsNativeStyleEditor: Array<any>,
 	supportsProfiling: Array<any>,
 	supportsReloadAndProfile: Array<any>,
-	unsupportedRendererVersionDetected: Array<any>,
+	unsupportedRendererVersionDetected: Array<any>
 }>
-

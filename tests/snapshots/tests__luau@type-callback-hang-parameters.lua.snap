@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-callback-hang-parameters.lua
 ---
 export type ObservableQueryFields<TData, TVariables> = ObservableQueryPick<TData, TVariables> & {
 	fetchMore: ((
@@ -11,7 +12,7 @@ export type ObservableQueryFields<TData, TVariables> = ObservableQueryPick<TData
 		fetchMoreOptions: { query: (DocumentNode | TypedDocumentNode<TData, TVariables>)? }
 			& FetchMoreQueryOptions<TVariables2, TData>
 			& FetchMoreOptions<TData2, TVariables2>
-	) -> Promise<ApolloQueryResult<TData2>>),
+	) -> Promise<ApolloQueryResult<TData2>>)
 }
 
 export type ObservableQueryFields<TData, TVariables> = ObservableQueryPick<TData, TVariables> & {
@@ -23,7 +24,7 @@ export type ObservableQueryFields<TData, TVariables> = ObservableQueryPick<TData
 		{ query: (DocumentNode | TypedDocumentNode<TData, TVariables>)? }
 			& FetchMoreQueryOptions<any, TData>
 			& FetchMoreOptions<any, any>
-	) -> Promise<ApolloQueryResult<any>>),
+	) -> Promise<ApolloQueryResult<any>>)
 }
 
 type Foo = (
@@ -33,4 +34,3 @@ type Foo = (
 
 type Foo = () -> X -- test
 	& Y
-

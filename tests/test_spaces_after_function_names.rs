@@ -1,4 +1,4 @@
-use stylua_lib::{format_code, Config, OutputVerification, SpaceAfterFunctionNames};
+use styluau_lib::{format_code, Config, OutputVerification, SpaceAfterFunctionNames};
 
 fn format(input: &str, space_after_function_names: SpaceAfterFunctionNames) -> String {
     format_code(

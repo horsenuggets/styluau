@@ -1,6 +1,6 @@
 use clap::{ArgEnum, StructOpt};
 use std::path::PathBuf;
-use stylua_lib::{
+use styluau_lib::{
     BlockNewlineGaps, CallParenType, CollapseSimpleStatement, IndentType, LineEndings, LuaVersion,
     QuoteStyle, SpaceAfterFunctionNames,
 };
@@ -10,9 +10,9 @@ lazy_static::lazy_static! {
 }
 
 #[derive(StructOpt, Clone, Debug)]
-#[structopt(name = "stylua", about = "A utility to format Lua code", version)]
+#[structopt(name = "styluau", about = "A utility to format Luau code", version)]
 pub struct Opt {
-    /// Specify path to stylua.toml configuration file.
+    /// Specify the path to a styluau.toml configuration file.
     ///
     /// If not provided, defaults to looking in the current directory for a configuration file.
     #[structopt(long = "config-path", short = 'f', parse(from_os_str))]
@@ -25,11 +25,11 @@ pub struct Opt {
     #[structopt(long = "stdin-filepath", parse(from_os_str))]
     pub stdin_filepath: Option<PathBuf>,
 
-    /// Search parent directories for stylua.toml, if not found in current directory.
+    /// Search parent directories for styluau.toml, if not found in the current directory.
     /// Ignored if config_path is provided.
     ///
     /// Keeps searching recursively up the parent directory tree, until the root directory is reached.
-    /// If not found, looks in $XDG_CONFIG_HOME or $XDG_CONFIG_HOME/stylua.
+    /// If not found, looks in $XDG_CONFIG_HOME or $XDG_CONFIG_HOME/styluau.
     #[structopt(short, long)]
     pub search_parent_directories: bool,
 
@@ -109,7 +109,7 @@ pub struct Opt {
     #[structopt(long)]
     pub no_editorconfig: bool,
 
-    /// Respect .styluaignore and glob matching for file paths provided directly to the tool
+    /// Respect .styluauignore and glob matching for file paths provided directly to the tool
     #[structopt(long)]
     pub respect_ignores: bool,
 
@@ -204,7 +204,7 @@ pub struct FormatOpts {
     pub space_after_function_names: Option<ArgSpaceAfterFunctionNames>,
 }
 
-// Convert [`stylua_lib::Config`] enums into clap-friendly enums
+// Convert [`styluau_lib::Config`] enums into clap-friendly enums
 macro_rules! convert_enum {
     ($from:tt, $arg:tt, { $($(#[$inner:meta])* $enum_name:ident,)+ }) => {
         #[derive(ArgEnum, Clone, Copy, Debug)]

@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/generic-for-hug.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/405
 do
@@ -10,7 +11,7 @@ do
 		Kind.OEPRATION_DEFINITION,
 		Kind.INLINE_FRAGMENT,
 		Kind.FRAGMENT_DEFINITION,
-		Kind.ARGUMENT,
+		Kind.ARGUMENT
 	}) do
 	end
 end
@@ -22,7 +23,7 @@ do
 		Kind.OEPRATION_DEFINITION,
 		Kind.INLINE_FRAGMENT,
 		Kind.FRAGMENT_DEFINITION,
-		Kind.ARGUMENT,
+		Kind.ARGUMENT
 	}) do
 	end
 end
@@ -36,7 +37,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		}) -- comment
 	do
 	end
@@ -50,7 +51,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		} or bar)
 	do
 	end
@@ -73,7 +74,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		}),
 		anotherThing
 	do
@@ -88,7 +89,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		}, "failure case")
 	do
 	end
@@ -102,7 +103,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		})(true)
 	do
 	end
@@ -116,7 +117,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		})
 	do
 	end
@@ -130,7 +131,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		}) or otherCall()
 	do
 	end
@@ -144,7 +145,7 @@ do
 			Kind.OEPRATION_DEFINITION,
 			Kind.INLINE_FRAGMENT,
 			Kind.FRAGMENT_DEFINITION,
-			Kind.ARGUMENT,
+			Kind.ARGUMENT
 		}) or true)
 	do
 	end
@@ -156,4 +157,3 @@ do
 	do
 	end
 end
-

@@ -4,8 +4,7 @@ expression: "format(&contents, path.to_str().unwrap())"
 input_file: tests/inputs-editorconfig/space-2.lua
 ---
 local foo = {
-  a = 1,
+  a = 1
 }
 
 local bar = ""
-

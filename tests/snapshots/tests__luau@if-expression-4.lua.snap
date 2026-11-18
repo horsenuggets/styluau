@@ -1,14 +1,15 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/if-expression-4.lua
 ---
 cache:writeQuery({
 	data = {
 		items = Array.concat({}, (function()
 			local ref = if Boing.toXYZBoxinf(data) and data ~= nil then data.items else data
 			return Boing.toXYZBoxinf(ref) and ref
-		end)() or {}, { item }),
-	},
+		end)() or {}, { item })
+	}
 })
 
 local error_ = if errors and #(errors :: Array<any>) > 0 then ApolloError.new({ graphQLErrors = errors }) else nil
@@ -23,4 +24,3 @@ local function useMutation<TData, TVariables, TContext, TCache>(
 		then Object.assign({}, options, { mutation = mutation })
 		else { mutation = mutation }
 end
-

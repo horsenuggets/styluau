@@ -1,9 +1,9 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs-full_moon/table-constructors-8.lua
 ---
 return {
 	["Noob Attack: Periastron"] = "Noob Attack - Periastron",
-	["Noob Attack꞉ Periastron"] = "Noob Attack - Periastron",
+	["Noob Attack꞉ Periastron"] = "Noob Attack - Periastron"
 }
-

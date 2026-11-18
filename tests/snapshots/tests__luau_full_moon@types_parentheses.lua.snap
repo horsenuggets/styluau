@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau-full_moon/types_parentheses.lua
 ---
 --!strict
 type GField<_crack, __fuzzing> = {}
@@ -13,7 +14,7 @@ export type PromiseLike<T> = {
 	andThen: (
 		((T) -> T)? | PromiseLike<T>?, -- resolve
 		((any) -> () | PromiseLike<T>)? -- reject
-	) -> PromiseLike<T>,
+	) -> PromiseLike<T>
 }
 
 local GError = {}
@@ -26,6 +27,5 @@ function GError.new(
 end
 
 type IProperties = {
-	RemoveOnCollision: (string | (IProperties, BasePart, Vector3, Vector3, Enum.Material, number) -> boolean)?,
+	RemoveOnCollision: (string | (IProperties, BasePart, Vector3, Vector3, Enum.Material, number) -> boolean)?
 }
-

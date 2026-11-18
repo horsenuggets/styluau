@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-hanging-comments.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/378
 export type KindEnum =
@@ -25,6 +26,5 @@ export type React_AbstractComponent<Config, Instance> = {
 	defaultProps: Config?,
 	name: string?,
 	-- this comment causes the brace above to be misformatted: the quick fox jumps over the lazy dog foo bar baz foo bar baz
-	[string]: any,
+	[string]: any
 }
-

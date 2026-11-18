@@ -1,9 +1,9 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-8.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/551
 local test = {
-	{ "http://example.com/b//c//d;p?q#blarg", "http://u:p@h.com/p/a/t/h?s#hash2", "http://u:p@h.com/p/a/t/h?s#hash2" },
+	{ "http://example.com/b//c//d;p?q#blarg", "http://u:p@h.com/p/a/t/h?s#hash2", "http://u:p@h.com/p/a/t/h?s#hash2" }
 }
-

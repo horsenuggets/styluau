@@ -110,11 +110,21 @@ pub fn format_call(
     shape: Shape,
     call_next_node: FunctionCallNextNode,
 ) -> Call {
+    format_call_with_parens_override(ctx, call, shape, call_next_node, false)
+}
+
+fn format_call_with_parens_override(
+    ctx: &Context,
+    call: &Call,
+    shape: Shape,
+    call_next_node: FunctionCallNextNode,
+    omit_parens: bool,
+) -> Call {
     let function_call_trivia = vec![create_function_call_trivia(ctx)];
     match call {
         Call::AnonymousCall(function_args) => {
             let formatted_function_args =
-                format_function_args(ctx, function_args, shape, call_next_node)
+                format_function_args(ctx, function_args, shape, call_next_node, omit_parens)
                     .update_leading_trivia(FormatTriviaType::Append(function_call_trivia));
             Call::AnonymousCall(Box::new(formatted_function_args))
         }
@@ -123,6 +133,7 @@ pub fn format_call(
             method_call,
             shape,
             call_next_node,
+            omit_parens,
         ))),
         other => panic!("unknown node {:?}", other),
     }
@@ -401,7 +412,10 @@ pub fn format_function_args(
     function_args: &FunctionArgs,
     shape: Shape,
     call_next_node: FunctionCallNextNode,
+    omit_parens: bool,
 ) -> FunctionArgs {
+    let omit_string = omit_parens || ctx.should_omit_string_parens();
+    let omit_table = omit_parens || ctx.should_omit_table_parens();
     match function_args {
         FunctionArgs::Parentheses {
             parentheses,
@@ -410,8 +424,8 @@ pub fn format_function_args(
             let (start_parens, end_parens) = parentheses.tokens();
 
             // Handle config where parentheses are omitted, and there is only one argument
-            if ctx.config().call_parentheses != CallParenType::Input
-                && (ctx.should_omit_string_parens() || ctx.should_omit_table_parens())
+            if (omit_parens || ctx.config().call_parentheses != CallParenType::Input)
+                && (omit_string || omit_table)
                 && arguments.len() == 1
                 && !matches!(call_next_node, FunctionCallNextNode::ObscureWithoutParens)
                 && !start_parens.has_trailing_comments(CommentSearch::Single)
@@ -428,7 +442,7 @@ pub fn format_function_args(
                 let trailing_comments = parentheses.tokens().1.trailing_trivia().cloned().collect();
 
                 match argument {
-                    Expression::String(token_reference) if ctx.should_omit_string_parens() => {
+                    Expression::String(token_reference) if omit_string => {
                         return format_function_args(
                             ctx,
                             &FunctionArgs::String(token_reference.update_trailing_trivia(
@@ -436,11 +450,10 @@ pub fn format_function_args(
                             )),
                             shape,
                             call_next_node,
+                            omit_parens,
                         );
                     }
-                    Expression::TableConstructor(table_constructor)
-                        if ctx.should_omit_table_parens() =>
-                    {
+                    Expression::TableConstructor(table_constructor) if omit_table => {
                         return format_function_args(
                             ctx,
                             &FunctionArgs::TableConstructor(
@@ -450,6 +463,7 @@ pub fn format_function_args(
                             ),
                             shape,
                             call_next_node,
+                            omit_parens,
                         );
                     }
                     _ => (),
@@ -532,8 +546,8 @@ pub fn format_function_args(
         }
 
         FunctionArgs::String(token_reference) => {
-            if ctx.config().call_parentheses == CallParenType::Input
-                || (ctx.should_omit_string_parens()
+            if (!omit_parens && ctx.config().call_parentheses == CallParenType::Input)
+                || (omit_string
                     && !matches!(call_next_node, FunctionCallNextNode::ObscureWithoutParens))
             {
                 let token_reference = format_token_reference(ctx, token_reference, shape)
@@ -571,8 +585,8 @@ pub fn format_function_args(
         }
 
         FunctionArgs::TableConstructor(table_constructor) => {
-            if ctx.config().call_parentheses == CallParenType::Input
-                || (ctx.should_omit_table_parens()
+            if (!omit_parens && ctx.config().call_parentheses == CallParenType::Input)
+                || (omit_table
                     && !matches!(call_next_node, FunctionCallNextNode::ObscureWithoutParens))
             {
                 let table_constructor = format_table_constructor(ctx, table_constructor, shape)
@@ -1004,6 +1018,9 @@ pub fn format_function_call(
     let formatted_prefix = format_prefix(ctx, function_call.prefix(), shape);
 
     let num_suffixes = function_call.suffixes().count();
+    let fusion_method = ctx.config().fusion
+        && matches!(function_call.prefix(), Prefix::Name(name) if ctx.is_fusion_receiver(function_call, &strip_trivia(name).to_string()))
+        && matches!(function_call.suffixes().next(), Some(Suffix::Call(Call::MethodCall(method))) if matches!(strip_trivia(method.name()).to_string().as_str(), "New" | "Hydrate"));
 
     // If there are comments within the chain, then we must hang the chain otherwise it can lead to an issue
     let must_hang = function_call
@@ -1148,7 +1165,28 @@ pub fn format_function_call(
             FunctionCallNextNode::None
         };
 
-        let mut suffix = format_suffix(ctx, suffix, current_shape, ambiguous_next_suffix);
+        let fusion_argument = fusion_method
+            && (idx == 0
+                || (idx == 1
+                    && matches!(suffix, Suffix::Call(Call::AnonymousCall(args)) if match args.as_ref() {
+                        FunctionArgs::TableConstructor(_) => true,
+                        FunctionArgs::Parentheses { arguments, .. } => arguments.len() == 1 && arguments.iter().next().is_some_and(is_table_constructor),
+                        _ => false,
+                    })));
+        let mut suffix = if fusion_argument {
+            match suffix {
+                Suffix::Call(call) => Suffix::Call(format_call_with_parens_override(
+                    ctx,
+                    call,
+                    current_shape,
+                    ambiguous_next_suffix,
+                    true,
+                )),
+                _ => unreachable!(),
+            }
+        } else {
+            format_suffix(ctx, suffix, current_shape, ambiguous_next_suffix)
+        };
 
         // Check if the previous suffix has trailing single-line comments.
         // If it does, we MUST hang the AnonymousCall to avoid the opening parenthesis being commented out
@@ -1344,6 +1382,7 @@ pub fn format_method_call(
     method_call: &MethodCall,
     shape: Shape,
     call_next_node: FunctionCallNextNode,
+    omit_parens: bool,
 ) -> MethodCall {
     let function_call_trivia = vec![create_function_call_trivia(ctx)];
 
@@ -1360,7 +1399,7 @@ pub fn format_method_call(
     });
 
     let formatted_function_args =
-        format_function_args(ctx, method_call.args(), shape, call_next_node)
+        format_function_args(ctx, method_call.args(), shape, call_next_node, omit_parens)
             .update_leading_trivia(FormatTriviaType::Append(function_call_trivia));
 
     let method_call = MethodCall::new(name, formatted_function_args).with_colon_token(colon_token);

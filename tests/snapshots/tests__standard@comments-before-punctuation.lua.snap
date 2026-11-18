@@ -1,6 +1,6 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
 input_file: tests/inputs/comments-before-punctuation.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/778
@@ -14,7 +14,7 @@ end
 
 local tab = {
 	a = 1 --[[@as integer ]],
-	b = 1,
+	b = 1
 }
 
 call(
@@ -24,4 +24,3 @@ call(
 	long_argument_name,
 	long_argument_name
 )
-

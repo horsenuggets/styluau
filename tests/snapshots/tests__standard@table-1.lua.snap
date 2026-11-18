@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-1.lua
 ---
 local foo = {
 	"bar",
@@ -19,7 +20,7 @@ local foo = {
 	"baz",
 	"foo",
 	"bar",
-	"baz",
+	"baz"
 }
 
 local foo = {
@@ -42,8 +43,7 @@ local foo = {
 	"baz",
 	"foo",
 	"bar",
-	"baz",
+	"baz"
 }
 
 local foo = {}
-

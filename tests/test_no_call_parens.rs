@@ -1,4 +1,4 @@
-use stylua_lib::{format_code, Config, OutputVerification};
+use styluau_lib::{format_code, Config, OutputVerification};
 
 fn format(input: &str) -> String {
     format_code(
@@ -6,6 +6,7 @@ fn format(input: &str) -> String {
         #[allow(deprecated)]
         Config {
             no_call_parentheses: true,
+            table_trailing_comma: true,
             ..Config::default()
         },
         None,

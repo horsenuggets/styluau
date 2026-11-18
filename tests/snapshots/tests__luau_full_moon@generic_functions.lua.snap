@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau-full_moon/generic_functions.lua
 ---
 --!strict
 function _foo<x, y>() end
@@ -8,14 +9,13 @@ function _foo<x, y>() end
 local function _bar<x>() end
 
 export type Foo0 = {
-	bar: <T>(a: T, b: nil | number | boolean) -> T,
+	bar: <T>(a: T, b: nil | number | boolean) -> T
 }
 local _baz
 export type Foo1 = {
-	bar: <T>(a: T, b: nil | number | boolean) -> ((arg0: T) -> ())?,
+	bar: <T>(a: T, b: nil | number | boolean) -> ((arg0: T) -> ())?
 }
 
 _baz = function<T>(a: T, b: number | boolean | nil): nil | T
 	return nil
 end
-

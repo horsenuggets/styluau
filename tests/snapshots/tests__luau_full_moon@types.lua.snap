@@ -23,7 +23,7 @@ type NetworkError = { message: string? } & { handled: true }
 
 type Foo = {
 	bar: number,
-	baz: number,
+	baz: number
 }
 
 local foo0: number = 3
@@ -54,4 +54,3 @@ end
 local function _concat<T, S>(source: Array<T>, ...: Array<S> | S): Array<T> & Array<S>
 	return (source :: any) :: Array<S> & Array<T>
 end
-

@@ -1,4 +1,4 @@
-use stylua_lib::{format_code, Config, OutputVerification, Range};
+use styluau_lib::{format_code, Config, OutputVerification, Range};
 
 fn format_range(input: &str, range: Range) -> String {
     format_code(

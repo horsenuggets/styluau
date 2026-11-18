@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/if-expression-comments-2.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/375
 local x = if true
@@ -14,6 +15,5 @@ context:reportError(("Required input field %s.%s cannot be deprecated."):format(
 		-- ROBLOX FUNTIME START: Luau
 		then (field :: any).astNode.type
 		-- ROBLOX FUNTIME END
-		else nil,
+		else nil
 })
-

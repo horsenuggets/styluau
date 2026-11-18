@@ -581,20 +581,21 @@ fn check_stmt_requires_semicolon(
 
 /// Formats a block node. Note: the given shape to the block formatter should already be at the correct indentation level
 pub fn format_block(ctx: &Context, block: &Block, shape: Shape) -> Block {
-    let mut ctx = *ctx;
+    let mut ctx = ctx.clone();
     let mut formatted_statements: Vec<(Stmt, Option<TokenReference>)> = Vec::new();
     let mut remove_next_stmt_leading_newlines = !ctx.should_preserve_leading_block_newline_gaps();
     let mut stmt_iterator = block.stmts_with_semicolon().peekable();
 
     while let Some((stmt, semi)) = stmt_iterator.next() {
         ctx = ctx.check_toggle_formatting(stmt);
+        let stmt_ctx = ctx.apply_fusion_directives(stmt);
 
         // A statement outside the range keeps its original semicolon:
         // stripping it would rewrite code the range did not ask for
         let out_of_range = matches!(ctx.should_format_node(stmt), FormatNode::NotInRange);
 
         let shape = shape.reset();
-        let mut stmt = format_stmt(&ctx, stmt, shape);
+        let mut stmt = format_stmt(&stmt_ctx, stmt, shape);
 
         // If this is the first stmt, and leading newlines should be removed, then remove them
         if remove_next_stmt_leading_newlines {
@@ -658,12 +659,13 @@ pub fn format_block(ctx: &Context, block: &Block, shape: Shape) -> Block {
     let formatted_last_stmt = match block.last_stmt_with_semicolon() {
         Some((last_stmt, semi)) => {
             ctx = ctx.check_toggle_formatting(last_stmt);
+            let stmt_ctx = ctx.apply_fusion_directives(last_stmt);
 
             // Like statements above, an out-of-range last statement keeps its semicolon
             let out_of_range = matches!(ctx.should_format_node(last_stmt), FormatNode::NotInRange);
 
             let shape = shape.reset();
-            let mut last_stmt = format_last_stmt(&ctx, last_stmt, shape);
+            let mut last_stmt = format_last_stmt(&stmt_ctx, last_stmt, shape);
             // If this is the first stmt, and leading newlines should be removed, then remove them
             if remove_next_stmt_leading_newlines
                 && matches!(ctx.should_format_node(&last_stmt), FormatNode::Normal)

@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-multiline-comments.lua
 ---
 -- Shouldn't hang since multiline comments arent an issue
 
@@ -24,6 +25,5 @@ export type GraphQLEnumType = --[[ <T> ]]
 		) -> string?,
 		parseValue: (self: GraphQLEnumType, any) -> any?, --[[ T ]]
 		parseLiteral: (self: GraphQLEnumType, ValueNode, ObjMap<any>?) -> any?, --[[ T ]]
-		toConfig: (self: GraphQLEnumType) -> GraphQLEnumTypeNormalizedConfig,
+		toConfig: (self: GraphQLEnumType) -> GraphQLEnumTypeNormalizedConfig
 	}
-

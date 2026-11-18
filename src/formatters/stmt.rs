@@ -972,10 +972,14 @@ pub(crate) mod stmt_block {
     ) -> TableConstructor {
         // Fields of a multiline table are indented one level deeper than the table itself
         let shape = shape.increment_block_indent();
+        let mut ctx = ctx.clone();
         let fields = table_constructor
             .fields()
             .pairs()
             .map(|pair| {
+                ctx = ctx.check_toggle_formatting(pair.value());
+                let field_ctx = ctx.apply_fusion_directives(pair.value());
+                let ctx = &field_ctx;
                 pair.to_owned().map(|field| match field {
                     Field::ExpressionKey {
                         brackets,

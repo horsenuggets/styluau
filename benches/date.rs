@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use stylua_lib::{format_code, Config, OutputVerification};
+use styluau_lib::{format_code, Config, OutputVerification};
 
 pub fn format_date(c: &mut Criterion) {
     c.bench_function("format date.lua", |b| {

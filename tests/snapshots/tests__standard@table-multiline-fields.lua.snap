@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-multiline-fields.lua
 ---
 local obj = { method1 = function(self) end, method2 = function(self, name) end }
 
@@ -8,7 +9,7 @@ local obj = {
 	method1 = function(self)
 		print(true)
 	end,
-	method2 = function(self, name) end,
+	method2 = function(self, name) end
 }
 
 local obj = {
@@ -19,6 +20,5 @@ local obj = {
 	["some-method"] = function(self) end,
 	["another-method"] = function(self, name) end,
 	["some-another-method"] = function(self) end,
-	["yet-another-method"] = function(self, name) end,
+	["yet-another-method"] = function(self, name) end
 }
-

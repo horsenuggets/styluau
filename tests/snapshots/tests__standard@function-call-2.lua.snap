@@ -1,37 +1,37 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/function-call-2.lua
 ---
 local App = Roact.createElement("Frame", {
 	Size = UDim2.new(0, 0, 0, 0),
-	Position = UDim2.new(0, 0, 0, 0),
+	Position = UDim2.new(0, 0, 0, 0)
 }, {
 	Child1 = Roact.createElement("TextLabel", {
 		Text = "foo",
 		AnchorPoint = Vector2.new(0, 0), -- comment
-		foo = bar,
+		foo = bar
 	}),
 
 	Child2 = Roact.createElement("TextLabel", {
 		Text = "foo",
 		AnchorPoint = Vector2.new(0, 0),
-		foo = bar,
-	}),
+		foo = bar
+	})
 })
 
 doSomething(
 	{
 		aLongKey = aLongValue,
-		anotherLongKey = anotherLongValue,
+		anotherLongKey = anotherLongValue
 	},
 	notATableLiteral,
 	{
 		aLongKey = anotherLongValue,
-		anotherLongKey = aLongValue,
+		anotherLongKey = aLongValue
 	}
 )
 
 table.sort(recommendedDeveloperProducts, function(a, b)
 	return a.amount < b.amount
 end)
-

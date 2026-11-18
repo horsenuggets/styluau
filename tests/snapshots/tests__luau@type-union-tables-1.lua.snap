@@ -17,12 +17,12 @@ export type AstExprTableItem =
 		key: string,
 		equals: Token<"=">,
 		value: AstExpr,
-		separator: Token<"," | ";">?,
+		separator: Token<"," | ";">?
 	}
 	| {
 		kind: "general",
 		key: string,
 		equals: Token<"=">,
 		value: AstExpr,
-		separator: Token<"," | ";">?,
+		separator: Token<"," | ";">?
 	}

@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/if-expression.lua
 ---
 local scale = if someReallyLongFlagName() or someOtherReallyLongFlagName() then foo else bar
 
@@ -20,23 +21,23 @@ local scale = if someReallyReallyLongFunctionNameThatForcesTheConditionToSpanMul
 local thing = makeSomething("Foo", {
 	OneChild = if someFlag()
 		then makeSomething("Bar", {
-			scale = 1,
+			scale = 1
 		})
 		else makeSomething("Bar", {
-			scale = 2,
+			scale = 2
 		}),
-	TwoChild = makeSomething("Baz"),
+	TwoChild = makeSomething("Baz")
 })
 
 local thing = makeSomething("Foo", {
 	OneChild = if someFlag()
 		then makeSomething("Bar", {
-			scale = 1,
+			scale = 1
 		})
 		else makeSomething("Bar", {
-			scale = 2,
+			scale = 2
 		}),
-	TwoChild = makeSomething("Baz"),
+	TwoChild = makeSomething("Baz")
 })
 
 local state = if hook ~= nil
@@ -49,15 +50,15 @@ local scale = if someFlag() then 1 elseif someOtherFlag() then 0.5 else 2
 local thing = makeSomething("Foo", {
 	OneChild = if someFlag()
 		then makeSomething("Bar", {
-			scale = 1,
+			scale = 1
 		})
 		elseif someOtherFlag() then makeSomething("Bar", {
-			scale = 0.5,
+			scale = 0.5
 		})
 		else makeSomething("Bar", {
-			scale = 2,
+			scale = 2
 		}),
-	TwoChild = makeSomething("Baz"),
+	TwoChild = makeSomething("Baz")
 })
 do
 	do
@@ -73,4 +74,3 @@ do
 		end
 	end
 end
-

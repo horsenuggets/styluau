@@ -1,11 +1,11 @@
 ---
 source: tests/tests.rs
-expression: "format_code(&contents,\n        Config::default().with_collapse_simple_statement(CollapseSimpleStatement::Always),\n        None, OutputVerification::None).unwrap()"
+expression: "format_code(&contents, Config\n{\n    collapse_simple_statement: CollapseSimpleStatement::Always,\n    ..Config::default()\n}, None, OutputVerification::None).unwrap()"
+input_file: tests/inputs-collapse-single-statement/over-column-width-3.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/619
 local a = {
 	aa = function()
 		return "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-	end,
+	end
 }
-

@@ -10,7 +10,7 @@ use lsp_types::{
 };
 use serde::{Deserialize, Serialize};
 use similar::{DiffOp, TextDiff};
-use stylua_lib::{format_code, IndentType, OutputVerification};
+use styluau_lib::{format_code, IndentType, OutputVerification};
 
 use crate::{config::ConfigResolver, opt, stylua_ignore};
 
@@ -126,7 +126,8 @@ struct LanguageServer<'a> {
 }
 
 enum FormattingError {
-    StyLuaError,
+    ConfigError(String),
+    StyLuauError,
     NotLuaDocument,
     DocumentNotFound,
     FileIsIgnored,
@@ -190,7 +191,7 @@ impl LanguageServer<'_> {
         };
 
         let range = range.map(|lsp_range| {
-            stylua_lib::Range::from_values(
+            styluau_lib::Range::from_values(
                 Some(document.offset_at(lsp_range.start).try_into().unwrap()),
                 Some(document.offset_at(lsp_range.end).try_into().unwrap()),
             )
@@ -218,7 +219,7 @@ impl LanguageServer<'_> {
         let mut config = self
             .config_resolver
             .load_configuration_with_search_root(path, search_root)
-            .unwrap_or_default();
+            .map_err(|error| FormattingError::ConfigError(format!("{:#}", error)))?;
 
         if let Some(formatting_options) = formatting_options {
             config.indent_width = formatting_options
@@ -234,7 +235,7 @@ impl LanguageServer<'_> {
 
         let Ok(formatted_contents) = format_code(contents, config, range, OutputVerification::None)
         else {
-            return Err(FormattingError::StyLuaError);
+            return Err(FormattingError::StyLuauError);
         };
 
         let operations = TextDiff::from_chars(contents, &formatted_contents).grouped_ops(0);
@@ -262,11 +263,16 @@ impl LanguageServer<'_> {
                                 .then_some(&params.options),
                         ) {
                             Ok(edits) => Response::new_ok(request.id, edits),
-                            Err(FormattingError::StyLuaError)
+                            Err(FormattingError::StyLuauError)
                             | Err(FormattingError::NotLuaDocument)
                             | Err(FormattingError::FileIsIgnored) => {
                                 Response::new_ok(request.id, serde_json::Value::Null)
                             }
+                            Err(FormattingError::ConfigError(message)) => Response::new_err(
+                                request.id,
+                                ErrorCode::RequestFailed as i32,
+                                message,
+                            ),
                             Err(FormattingError::DocumentNotFound) => Response::new_err(
                                 request.id,
                                 ErrorCode::RequestFailed as i32,
@@ -294,11 +300,16 @@ impl LanguageServer<'_> {
                                 .then_some(&params.options),
                         ) {
                             Ok(edits) => Response::new_ok(request.id, edits),
-                            Err(FormattingError::StyLuaError)
+                            Err(FormattingError::StyLuauError)
                             | Err(FormattingError::NotLuaDocument)
                             | Err(FormattingError::FileIsIgnored) => {
                                 Response::new_ok(request.id, serde_json::Value::Null)
                             }
+                            Err(FormattingError::ConfigError(message)) => Response::new_err(
+                                request.id,
+                                ErrorCode::RequestFailed as i32,
+                                message,
+                            ),
                             Err(FormattingError::DocumentNotFound) => Response::new_err(
                                 request.id,
                                 ErrorCode::RequestFailed as i32,
@@ -1032,6 +1043,41 @@ mod tests {
     }
 
     #[test]
+    fn test_lsp_reports_invalid_glob() {
+        let contents = "local x = 1";
+        let cwd = construct_tree!({
+            "styluau.toml": "[[overrides]]\nfiles = ['[']\n",
+            "foo.lua": contents,
+        });
+        let uri = Uri::from_str(cwd.child("foo.lua").to_str().unwrap()).unwrap();
+        lsp_test!(
+            [],
+            [
+                initialize(1, Some(cwd.path())),
+                initialized(),
+                open_text_document(uri.clone(), contents.to_string()),
+                format_document(2, uri.clone(), FormattingOptions::default()),
+                shutdown(3),
+                exit()
+            ],
+            [
+                |receiver| expect_server_initialized(receiver, 1),
+                |receiver: &Receiver<Message>| {
+                    let Message::Response(Response {
+                        error: Some(error), ..
+                    }) = receiver.recv().unwrap()
+                    else {
+                        panic!("Expected a configuration error");
+                    };
+                    assert_eq!(error.code, ErrorCode::RequestFailed as i32);
+                    assert!(error.message.contains("Invalid glob"), "{}", error.message);
+                },
+                |receiver| expect_server_shutdown(receiver, 3)
+            ]
+        );
+    }
+
+    #[test]
     fn test_lsp_respects_configuration_in_root_path() {
         let contents = "local x = \"hello\"";
         let cwd = construct_tree!({
@@ -1057,6 +1103,35 @@ mod tests {
                     let edits: Vec<TextEdit> = expect_response(receiver, 2);
                     let formatted = apply_text_edits_to(contents, edits);
                     assert_eq!(formatted, "local x = 'hello'\n");
+                },
+                |receiver| expect_server_shutdown(receiver, 3)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lsp_respects_glob_overrides() {
+        let contents = "local x = \"hello\"";
+        let cwd = construct_tree!({
+            "styluau.toml": "quote_style = 'AutoPreferDouble'\n[[overrides]]\nfiles = ['foo.lua']\nquote_style = 'AutoPreferSingle'\n",
+            "foo.lua": contents,
+        });
+        let uri = Uri::from_str(cwd.child("foo.lua").to_str().unwrap()).unwrap();
+        lsp_test!(
+            [],
+            [
+                initialize(1, Some(cwd.path())),
+                initialized(),
+                open_text_document(uri.clone(), contents.to_string()),
+                format_document(2, uri.clone(), FormattingOptions::default()),
+                shutdown(3),
+                exit()
+            ],
+            [
+                |receiver| expect_server_initialized(receiver, 1),
+                |receiver| {
+                    let edits: Vec<TextEdit> = expect_response(receiver, 2);
+                    assert_eq!(apply_text_edits_to(contents, edits), "local x = 'hello'\n");
                 },
                 |receiver| expect_server_shutdown(receiver, 3)
             ]

@@ -109,6 +109,16 @@ property_choice! {
 
 // Override StyLua config with EditorConfig properties
 fn load(mut config: Config, properties: &Properties) -> Config {
+    let mut properties = properties.clone();
+    for (new, legacy) in [
+        ("styluau_syntax", "stylua_syntax"),
+        ("styluau_block_newline_gaps", "stylua_block_newline_gaps"),
+    ] {
+        let value = properties.get_raw_for_key(new).clone();
+        if !value.is_unset() {
+            properties.insert_raw_for_key(legacy, value);
+        }
+    }
     if let Ok(end_of_line) = properties.get::<EndOfLine>() {
         config.line_endings = match end_of_line {
             EndOfLine::Cr | EndOfLine::Lf => LineEndings::Unix,
@@ -482,6 +492,18 @@ mod tests {
         properties.insert_raw_for_key("sort_requires", "false");
         let config = Config::from(&properties);
         assert!(!config.sort_requires.enabled);
+    }
+
+    #[test]
+    fn test_styluau_properties_take_precedence() {
+        let mut properties = Properties::new();
+        properties.insert_raw_for_key("stylua_syntax", "all");
+        properties.insert_raw_for_key("styluau_syntax", "lua51");
+        properties.insert_raw_for_key("stylua_block_newline_gaps", "never");
+        properties.insert_raw_for_key("styluau_block_newline_gaps", "preserve");
+        let config = Config::from(&properties);
+        assert_eq!(config.syntax, LuaVersion::Lua51);
+        assert_eq!(config.block_newline_gaps, BlockNewlineGaps::Preserve);
     }
 
     #[test]

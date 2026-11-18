@@ -1,16 +1,16 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/string-brackets-index.lua
 ---
 local foo = {
 	[ [[test]] ] = true,
 	[ [[foo]] ] = true,
 	[ [[bar]] ] = true,
-	[ [[baz]] ] = true,
+	[ [[baz]] ] = true
 }
 
 foo[ [[test]] ] = false
 foo[ [[foo]] ] = true
 foo[ [[bar]] ] = true
 foo[ [[baz]] ] = true
-

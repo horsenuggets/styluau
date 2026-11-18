@@ -1,10 +1,10 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/hang-call-chains-2.lua
 ---
 local output = Job:new({
 	command = "stylua",
 	args = { "-" },
-	writer = api.nvim_buf_get_lines(bufnr, 0, -1, false),
+	writer = api.nvim_buf_get_lines(bufnr, 0, -1, false)
 }):sync()
-

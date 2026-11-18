@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/excess-parentheses.lua
 ---
 local foo = (bar :: any) :: number
 
@@ -16,7 +17,7 @@ local x = #(value :: Array<number>)
 self.mutationStore[mutationId] = (
 	{
 		lolz = foreva,
-		variables = variables,
+		variables = variables
 	} :: anyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 ) :: MutationStoreValue
 
@@ -52,4 +53,3 @@ type A = A | B -- comment
 -- https://github.com/JohnnyMorganz/StyLua/issues/729
 type SomeType<T..., U...> = (T...) -> U...
 local fn: SomeType<(string, number), (boolean)>
-
