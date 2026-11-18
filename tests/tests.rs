@@ -249,6 +249,59 @@ fn test_fusion_call_safety() {
 
 #[test]
 #[cfg(feature = "luau")]
+fn test_fusion_keeps_parentheses_containing_comments() {
+    use styluau_lib::CallParenType;
+
+    for call_parentheses in [CallParenType::Always, CallParenType::None] {
+        let config = Config {
+            syntax: LuaVersion::Luau,
+            call_parentheses,
+            fusion: true,
+            ..Config::default()
+        };
+        for input in [
+            "local x = scope:New(--[[important]] \"Frame\")({})\n",
+            "local x = scope:New(\"Frame\" --[[important]])({})\n",
+            "local y = other(--[[important]] \"text\")\n",
+            "local y = other(--[[important]] { value = 1 })\n",
+        ] {
+            let output =
+                format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+            assert!(output.contains("--[[important]]"), "{}", output);
+            assert_eq!(
+                output,
+                format_code(&output, config.clone(), None, OutputVerification::Full).unwrap()
+            );
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "luau")]
+fn test_fusion_directives_survive_require_sorting() {
+    use styluau_lib::CallParenType;
+
+    let config = Config {
+        syntax: LuaVersion::Luau,
+        call_parentheses: CallParenType::Always,
+        fusion: true,
+        sort_requires: SortRequiresConfig { enabled: true },
+        ..Config::default()
+    };
+    let input = "-- styluau: fusion on\nlocal z = require(scope:New(\"Frame\")({}))\nlocal a = require(\"a\")\nlocal m = require(\"m\")\n";
+    let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+    assert_eq!(
+        output,
+        "-- styluau: fusion on\nlocal z = require(scope:New \"Frame\" {})\nlocal a = require(\"a\")\nlocal m = require(\"m\")\n"
+    );
+    assert_eq!(
+        output,
+        format_code(&output, config, None, OutputVerification::Full).unwrap()
+    );
+}
+
+#[test]
+#[cfg(feature = "luau")]
 fn test_fusion_comment_overrides() {
     use styluau_lib::CallParenType;
     let input = "-- styluau: fusion on\nlocal a = scope:New(\"Frame\")({})\nlocal b = scope:New(\"Frame\")({})\n-- styluau: fusion on start\nlocal c = scope:New(\"Frame\")({})\n-- styluau: fusion off start\nlocal d = scope:New(\"Frame\")({})\n-- styluau: fusion end\n-- styluau: fusion scope custom\nlocal e = custom:New(\"Frame\")({})\n-- styluau: fusion not-scope scope\nlocal f = scope:New(\"Frame\")({})\n-- styluau: fusion end\nlocal g = scope:New(\"Frame\")({})\n";

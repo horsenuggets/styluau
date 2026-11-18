@@ -89,6 +89,20 @@ fn regions_before_positional_tables_belong_to_the_parent() {
 }
 
 #[test]
+#[cfg(feature = "luau")]
+fn regions_cannot_cross_table_type_boundaries() {
+    let invalid =
+        "-- styluau: fusion on start\ntype T = {\n-- styluau: fusion end\na: number,\n}\n";
+    assert!(matches!(
+        check(invalid, None),
+        Err(Error::FusionDirectiveError(_))
+    ));
+    let valid =
+        "type T = {\n-- styluau: fusion on start\na: () -> (),\n-- styluau: fusion end\nb: number,\n}\n";
+    assert!(check(valid, None).is_ok());
+}
+
+#[test]
 fn regions_cannot_cross_nested_table_or_block_boundaries() {
     let table = "-- styluau: fusion on start\nlocal x = {\n-- styluau: fusion end\na = 1\n}\n";
     let block =
