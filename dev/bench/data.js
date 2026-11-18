@@ -1,6 +1,6 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791724153540,
-  "repoUrl": "https://github.com/JohnnyMorganz/StyLua",
+  "lastUpdate": 1795038208160,
+  "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
       {
@@ -18353,6 +18353,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 16598686,
             "range": "± 210779",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "24671870aeed2c4df383d0af43ecec781a2c81db",
+          "message": "Establish StyLuau with table comma and Fusion formatting controls\n\nRebrand the formatter, CLI, distribution packages and VS Code integration as StyLuau while retaining legacy configuration compatibility. Multiline table values across all supported syntaxes and Luau table types omit the final comma by default, with a configurable toggle to restore it.\n\nAdd ordered file-glob overrides and opt-in Fusion constructor formatting with configurable receiver names, conservative import tracking and in-file controls. Rust, WASM, extension, Docker and cross-platform npm packaging checks passed. No publication or version bump is included.",
+          "timestamp": "2026-11-18T15:41:31-06:00",
+          "tree_id": "c916bbe2cbbb51a6abdb5c69630aafaba1c4524c",
+          "url": "https://github.com/horsenuggets/styluau/commit/24671870aeed2c4df383d0af43ecec781a2c81db"
+        },
+        "date": 1795038206708,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 22953230,
+            "range": "± 540233",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 180223879,
+            "range": "± 2367732",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 15249274,
+            "range": "± 153917",
             "unit": "ns/iter"
           }
         ]
