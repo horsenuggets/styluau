@@ -198,6 +198,25 @@ fn test_styluau_ignore_for_explicit_file() {
 }
 
 #[test]
+fn test_both_ignore_files_apply_to_explicit_file() {
+    let cwd = construct_tree!({
+        ".styluauignore": "new.lua",
+        ".styluaignore": "legacy.lua",
+        "new.lua": "local   x   =   1",
+        "legacy.lua": "local   x   =   1",
+        "other.lua": "local   x   =   1",
+    });
+    create_stylua()
+        .current_dir(cwd.path())
+        .args(["--respect-ignores", "new.lua", "legacy.lua", "other.lua"])
+        .assert()
+        .success();
+    cwd.child("new.lua").assert("local   x   =   1");
+    cwd.child("legacy.lua").assert("local   x   =   1");
+    cwd.child("other.lua").assert("local x = 1\n");
+}
+
+#[test]
 fn test_stylua_ignore() {
     let cwd = construct_tree!({
         ".styluaignore": "ignored/",

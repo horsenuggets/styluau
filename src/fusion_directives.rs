@@ -1,7 +1,7 @@
 use crate::Error;
 use full_moon::{
     ast::{Ast, Block, TableConstructor},
-    tokenizer::{Symbol, Token, TokenType},
+    tokenizer::{Symbol, Token, TokenReference, TokenType},
     visitors::Visitor,
 };
 
@@ -23,6 +23,13 @@ impl Validator {
     fn enter_scope(&mut self) {
         self.next_scope += 1;
         self.scopes.push(self.next_scope);
+    }
+
+    fn track_braces(&mut self, (open, close): (&TokenReference, &TokenReference)) {
+        self.table_openers
+            .insert(open.token().start_position().bytes());
+        self.table_closers
+            .insert(close.token().start_position().bytes());
     }
 
     fn boundary_comment(&mut self, token: &Token) {
@@ -143,11 +150,16 @@ impl Visitor for Validator {
     }
 
     fn visit_table_constructor(&mut self, table: &TableConstructor) {
-        let (open, close) = table.braces().tokens();
-        self.table_openers
-            .insert(open.token().start_position().bytes());
-        self.table_closers
-            .insert(close.token().start_position().bytes());
+        self.track_braces(table.braces().tokens());
+    }
+
+    #[cfg(feature = "luau")]
+    fn visit_type_info(&mut self, type_info: &full_moon::ast::luau::TypeInfo) {
+        // Table-type fields consume Fusion regions the same way value-table fields do, so
+        // their braces must delimit regions too
+        if let full_moon::ast::luau::TypeInfo::Table { braces, .. } = type_info {
+            self.track_braces(braces.tokens());
+        }
     }
 
     fn visit_token(&mut self, token: &Token) {

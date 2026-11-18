@@ -98,13 +98,24 @@ export async function activate(context: vscode.ExtensionContext) {
     github,
     outputChannel
   );
+  context.subscriptions.push(downloader, outputChannel);
 
   let cwdForVersionDetection =
     vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
-  let styluauBinaryPath = await downloader.ensureStyluaExists(
-    cwdForVersionDetection
-  );
+  // A failed download must not stop activation, otherwise the recovery commands and settings
+  // listener below never register and the user cannot pick another version or local binary
+  let styluauBinaryPath: StyluaInfo | undefined;
+  try {
+    styluauBinaryPath = await downloader.ensureStyluaExists(
+      cwdForVersionDetection
+    );
+  } catch (error) {
+    outputChannel.error(`Failed to initialize StyLuau: ${error}`);
+    vscode.window.showErrorMessage(
+      `Failed to initialize StyLuau: ${error}. Run "StyLuau: Reinstall" or configure a local binary.`
+    );
+  }
   statusItem.setStyluaInfo(styluauBinaryPath);
 
   context.subscriptions.push(
@@ -204,10 +215,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (change) => {
-      if (change.affectsConfiguration("styluau")) {
-        styluauBinaryPath = await downloader.ensureStyluaExists(
-          cwdForVersionDetection
-        );
+      if (
+        change.affectsConfiguration("styluau") ||
+        change.affectsConfiguration("stylua")
+      ) {
+        try {
+          styluauBinaryPath = await downloader.ensureStyluaExists(
+            cwdForVersionDetection
+          );
+        } catch (error) {
+          outputChannel.error(`Failed to resolve StyLuau: ${error}`);
+          styluauBinaryPath = undefined;
+        }
         statusItem.setStyluaInfo(styluauBinaryPath);
       }
     })

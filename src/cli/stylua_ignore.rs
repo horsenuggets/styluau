@@ -1,7 +1,7 @@
-use crate::config::find_ignore_file_path;
+use crate::config::find_ignore_files;
 use crate::opt::Opt;
 use anyhow::{Context, Result};
-use ignore::gitignore::Gitignore;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::path::{Path, PathBuf};
 
 fn get_ignore(
@@ -9,23 +9,26 @@ fn get_ignore(
     search_parent_directories: bool,
     search_root: Option<PathBuf>,
 ) -> Result<Gitignore, ignore::Error> {
-    let file_path = find_ignore_file_path(directory.to_path_buf(), search_parent_directories)
-        .or_else(|| {
+    let found =
+        find_ignore_files(directory.to_path_buf(), search_parent_directories).or_else(|| {
             search_root
                 .or_else(|| std::env::current_dir().ok())
-                .and_then(|cwd| find_ignore_file_path(cwd, false))
+                .and_then(|cwd| find_ignore_files(cwd, false))
         });
 
-    if let Some(file_path) = file_path {
-        let (ignore, err) = Gitignore::new(file_path);
-        if let Some(err) = err {
-            Err(err)
-        } else {
-            Ok(ignore)
+    let Some((root, files)) = found else {
+        return Ok(Gitignore::empty());
+    };
+
+    // Use the containing directory as the root so every file in the same directory shares
+    // one matcher and later files take precedence.
+    let mut builder = GitignoreBuilder::new(root);
+    for file_path in files {
+        if let Some(err) = builder.add(file_path) {
+            return Err(err);
         }
-    } else {
-        Ok(Gitignore::empty())
     }
+    builder.build()
 }
 
 /// Whether the provided path was explicitly provided to the tool

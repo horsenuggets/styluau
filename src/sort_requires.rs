@@ -110,8 +110,26 @@ enum BlockPartition {
     Other(Vec<StmtSemicolon>),
 }
 
+/// Whether a statement's leading trivia contains a Fusion directive. Sorting moves a group's
+/// leading trivia to whichever statement sorts first, so a directive-carrying require must stay
+/// attached to its own statement rather than moving to a sibling.
+fn has_fusion_directive(stmt: &Stmt) -> bool {
+    stmt.tokens()
+        .next()
+        .into_iter()
+        .flat_map(|token| token.leading_trivia())
+        .filter_map(|trivia| match trivia.token_type() {
+            TokenType::SingleLineComment { comment }
+            | TokenType::MultiLineComment { comment, .. } => Some(comment),
+            _ => None,
+        })
+        .flat_map(|comment| comment.lines())
+        .any(|line| line.trim().starts_with("styluau: fusion "))
+}
+
 fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
     let mut parts = Vec::new();
+    let mut previous_has_directive = false;
 
     for stmt in block.stmts_with_semicolon() {
         if let Some((variable_name, expression_kind, current_line)) = get_sortable_assignment(stmt)
@@ -120,25 +138,29 @@ fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
             // Either, the parts list is empty, the last part was a BlockPartition::Other,
             // the last part group was a different kind, or,
             // there is > 1 line in between the previous require and this one
-            let create_new_block = match parts.last() {
-                None => true,
-                Some(BlockPartition::Other(_)) => true,
-                Some(BlockPartition::RequiresGroup(other_kind, _))
-                    if *other_kind != expression_kind =>
-                {
-                    true
-                }
-                Some(BlockPartition::RequiresGroup(_, list)) => {
-                    let previous_require = list.last().expect("unreachable!: empty require group");
-                    let position = previous_require
-                        .1
-                        .end_position()
-                        .expect("unreachable!: previous require stmt has no end position");
+            let current_has_directive = has_fusion_directive(&stmt.0);
+            let create_new_block = previous_has_directive
+                || current_has_directive
+                || match parts.last() {
+                    None => true,
+                    Some(BlockPartition::Other(_)) => true,
+                    Some(BlockPartition::RequiresGroup(other_kind, _))
+                        if *other_kind != expression_kind =>
+                    {
+                        true
+                    }
+                    Some(BlockPartition::RequiresGroup(_, list)) => {
+                        let previous_require =
+                            list.last().expect("unreachable!: empty require group");
+                        let position = previous_require
+                            .1
+                            .end_position()
+                            .expect("unreachable!: previous require stmt has no end position");
 
-                    let previous_require_line = position.line();
-                    current_line - previous_require_line > 1
-                }
-            };
+                        let previous_require_line = position.line();
+                        current_line - previous_require_line > 1
+                    }
+                };
 
             if create_new_block {
                 parts.push(BlockPartition::RequiresGroup(expression_kind, Vec::new()))
@@ -151,6 +173,7 @@ fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
                 _ => unreachable!(),
             };
 
+            previous_has_directive = current_has_directive;
             continue;
         }
 
@@ -165,6 +188,7 @@ fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
             Some(BlockPartition::Other(list)) => list.push(stmt.clone()),
             _ => unreachable!(),
         }
+        previous_has_directive = false;
     }
 
     parts

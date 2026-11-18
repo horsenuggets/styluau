@@ -103,6 +103,17 @@ pub enum FunctionCallNextNode {
     None,
 }
 
+/// How a single call should treat parentheses, independent of the global configuration
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ParensOverride {
+    /// Use the configured parentheses behavior
+    Default,
+    /// Omit parentheses for eligible string and table arguments
+    Omit,
+    /// Keep parentheses, even for eligible string and table arguments
+    Keep,
+}
+
 /// Formats a Call node
 pub fn format_call(
     ctx: &Context,
@@ -110,7 +121,7 @@ pub fn format_call(
     shape: Shape,
     call_next_node: FunctionCallNextNode,
 ) -> Call {
-    format_call_with_parens_override(ctx, call, shape, call_next_node, false)
+    format_call_with_parens_override(ctx, call, shape, call_next_node, ParensOverride::Default)
 }
 
 fn format_call_with_parens_override(
@@ -118,13 +129,13 @@ fn format_call_with_parens_override(
     call: &Call,
     shape: Shape,
     call_next_node: FunctionCallNextNode,
-    omit_parens: bool,
+    parens: ParensOverride,
 ) -> Call {
     let function_call_trivia = vec![create_function_call_trivia(ctx)];
     match call {
         Call::AnonymousCall(function_args) => {
             let formatted_function_args =
-                format_function_args(ctx, function_args, shape, call_next_node, omit_parens)
+                format_function_args(ctx, function_args, shape, call_next_node, parens)
                     .update_leading_trivia(FormatTriviaType::Append(function_call_trivia));
             Call::AnonymousCall(Box::new(formatted_function_args))
         }
@@ -133,7 +144,7 @@ fn format_call_with_parens_override(
             method_call,
             shape,
             call_next_node,
-            omit_parens,
+            parens,
         ))),
         other => panic!("unknown node {:?}", other),
     }
@@ -141,6 +152,22 @@ fn format_call_with_parens_override(
 
 fn is_table_constructor(expression: &Expression) -> bool {
     matches!(expression, Expression::TableConstructor(_))
+}
+
+/// Whether a single-argument call has a comment directly after that argument
+fn call_args_have_trailing_comments(suffix: &Suffix) -> bool {
+    let args = match suffix {
+        Suffix::Call(Call::AnonymousCall(args)) => args.as_ref(),
+        Suffix::Call(Call::MethodCall(method)) => method.args(),
+        _ => return false,
+    };
+    match args {
+        FunctionArgs::Parentheses { arguments, .. } if arguments.len() == 1 => arguments
+            .iter()
+            .next()
+            .is_some_and(|argument| argument.has_trailing_comments(CommentSearch::All)),
+        _ => false,
+    }
 }
 
 fn is_complex_arg(value: &Expression) -> bool {
@@ -412,10 +439,12 @@ pub fn format_function_args(
     function_args: &FunctionArgs,
     shape: Shape,
     call_next_node: FunctionCallNextNode,
-    omit_parens: bool,
+    parens: ParensOverride,
 ) -> FunctionArgs {
-    let omit_string = omit_parens || ctx.should_omit_string_parens();
-    let omit_table = omit_parens || ctx.should_omit_table_parens();
+    let force_omit = parens == ParensOverride::Omit;
+    let force_keep = parens == ParensOverride::Keep;
+    let omit_string = !force_keep && (force_omit || ctx.should_omit_string_parens());
+    let omit_table = !force_keep && (force_omit || ctx.should_omit_table_parens());
     match function_args {
         FunctionArgs::Parentheses {
             parentheses,
@@ -424,17 +453,19 @@ pub fn format_function_args(
             let (start_parens, end_parens) = parentheses.tokens();
 
             // Handle config where parentheses are omitted, and there is only one argument
-            if (omit_parens || ctx.config().call_parentheses != CallParenType::Input)
+            if (force_omit || ctx.config().call_parentheses != CallParenType::Input)
                 && (omit_string || omit_table)
                 && arguments.len() == 1
                 && !matches!(call_next_node, FunctionCallNextNode::ObscureWithoutParens)
-                && !start_parens.has_trailing_comments(CommentSearch::Single)
-                && !end_parens.has_leading_comments(CommentSearch::Single)
+                // Removing the parentheses must not discard a comment they contain, so keep
+                // them for block comments as well as single-line comments
+                && !start_parens.has_trailing_comments(CommentSearch::All)
+                && !end_parens.has_leading_comments(CommentSearch::All)
                 && !arguments
                     .first()
                     .unwrap()
                     .value()
-                    .has_leading_comments(CommentSearch::Single)
+                    .has_leading_comments(CommentSearch::All)
             {
                 let argument = arguments.iter().next().unwrap();
 
@@ -450,7 +481,7 @@ pub fn format_function_args(
                             )),
                             shape,
                             call_next_node,
-                            omit_parens,
+                            parens,
                         );
                     }
                     Expression::TableConstructor(table_constructor) if omit_table => {
@@ -463,7 +494,7 @@ pub fn format_function_args(
                             ),
                             shape,
                             call_next_node,
-                            omit_parens,
+                            parens,
                         );
                     }
                     _ => (),
@@ -546,7 +577,7 @@ pub fn format_function_args(
         }
 
         FunctionArgs::String(token_reference) => {
-            if (!omit_parens && ctx.config().call_parentheses == CallParenType::Input)
+            if (!force_omit && ctx.config().call_parentheses == CallParenType::Input)
                 || (omit_string
                     && !matches!(call_next_node, FunctionCallNextNode::ObscureWithoutParens))
             {
@@ -585,7 +616,7 @@ pub fn format_function_args(
         }
 
         FunctionArgs::TableConstructor(table_constructor) => {
-            if (!omit_parens && ctx.config().call_parentheses == CallParenType::Input)
+            if (!force_omit && ctx.config().call_parentheses == CallParenType::Input)
                 || (omit_table
                     && !matches!(call_next_node, FunctionCallNextNode::ObscureWithoutParens))
             {
@@ -1173,19 +1204,32 @@ pub fn format_function_call(
                         FunctionArgs::Parentheses { arguments, .. } => arguments.len() == 1 && arguments.iter().next().is_some_and(is_table_constructor),
                         _ => false,
                     })));
-        let mut suffix = if fusion_argument {
-            match suffix {
+        let parens = if fusion_argument {
+            // Removing these parentheses would turn a trailing argument comment into a
+            // comment within the call chain, which rewraps the chain differently on the next
+            // run. Keeping the parentheses keeps formatting stable.
+            if suffixes.peek().is_some() && call_args_have_trailing_comments(suffix) {
+                ParensOverride::Keep
+            } else {
+                ParensOverride::Omit
+            }
+        } else {
+            ParensOverride::Default
+        };
+        let mut suffix = match parens {
+            ParensOverride::Default => {
+                format_suffix(ctx, suffix, current_shape, ambiguous_next_suffix)
+            }
+            _ => match suffix {
                 Suffix::Call(call) => Suffix::Call(format_call_with_parens_override(
                     ctx,
                     call,
                     current_shape,
                     ambiguous_next_suffix,
-                    true,
+                    parens,
                 )),
                 _ => unreachable!(),
-            }
-        } else {
-            format_suffix(ctx, suffix, current_shape, ambiguous_next_suffix)
+            },
         };
 
         // Check if the previous suffix has trailing single-line comments.
@@ -1382,7 +1426,7 @@ pub fn format_method_call(
     method_call: &MethodCall,
     shape: Shape,
     call_next_node: FunctionCallNextNode,
-    omit_parens: bool,
+    parens: ParensOverride,
 ) -> MethodCall {
     let function_call_trivia = vec![create_function_call_trivia(ctx)];
 
@@ -1399,7 +1443,7 @@ pub fn format_method_call(
     });
 
     let formatted_function_args =
-        format_function_args(ctx, method_call.args(), shape, call_next_node, omit_parens)
+        format_function_args(ctx, method_call.args(), shape, call_next_node, parens)
             .update_leading_trivia(FormatTriviaType::Append(function_call_trivia));
 
     let method_call = MethodCall::new(name, formatted_function_args).with_colon_token(colon_token);
