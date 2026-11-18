@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795038208160,
+  "lastUpdate": 1795043685787,
   "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
@@ -18395,6 +18395,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 15249274,
             "range": "± 153917",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ace136f776f66071bc42a3108eec73c7b6327994",
+          "message": "Address Copilot review findings for StyLuau\n\nPreserve Fusion comments and call-chain stability, enforce table-type region boundaries, and keep directives attached during require sorting. Combine both ignore files for individual paths and report Fusion directive errors through LSP formatting.\n\nHonor explicit legacy extension settings with new-setting precedence, keep recovery commands available after failed initialization, and support extension builds with an explicit release endpoint or no recognizable Git origin. Add regression coverage for these behaviors. All 21 CI checks passed.",
+          "timestamp": "2026-11-18T17:12:44-06:00",
+          "tree_id": "c7561d5f9d1416b0272515abdbc64c67a3ed04a8",
+          "url": "https://github.com/horsenuggets/styluau/commit/ace136f776f66071bc42a3108eec73c7b6327994"
+        },
+        "date": 1795043684716,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 27691362,
+            "range": "± 619397",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 229656123,
+            "range": "± 754865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 19184764,
+            "range": "± 198901",
             "unit": "ns/iter"
           }
         ]
