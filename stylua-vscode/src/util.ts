@@ -78,24 +78,38 @@ export interface InspectedSetting<T> {
 // value can win over the new setting's default.
 const explicitValue = <T>(
   setting: InspectedSetting<T> | undefined
-): T | undefined =>
-  setting?.workspaceFolderLanguageValue ??
-  setting?.workspaceFolderValue ??
-  setting?.workspaceLanguageValue ??
-  setting?.workspaceValue ??
-  setting?.globalLanguageValue ??
-  setting?.globalValue ??
-  setting?.defaultLanguageValue;
+): T | undefined => {
+  for (const value of [
+    setting?.workspaceFolderLanguageValue,
+    setting?.workspaceLanguageValue,
+    setting?.globalLanguageValue,
+    setting?.workspaceFolderValue,
+    setting?.workspaceValue,
+    setting?.globalValue,
+  ]) {
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
+};
 
 /**
- * Picks a setting value from the StyLuau and legacy StyLuau configurations, preferring an
+ * Picks a setting value from the StyLuau and legacy StyLua configurations, preferring an
  * explicitly set new value. Declared defaults are ignored so a legacy value can still apply.
  */
 export const resolveSetting = <T>(
   current: InspectedSetting<T> | undefined,
   legacy: InspectedSetting<T> | undefined,
   defaultValue: T
-): T => explicitValue(current) ?? explicitValue(legacy) ?? defaultValue;
+): T => {
+  const currentValue = explicitValue(current);
+  if (currentValue !== undefined) {
+    return currentValue;
+  }
+  const legacyValue = explicitValue(legacy);
+  return legacyValue !== undefined ? legacyValue : defaultValue;
+};
 
 /**
  * Reads a StyLuau setting, falling back to a legacy `stylua.*` value the user set
@@ -104,7 +118,9 @@ export const resolveSetting = <T>(
 export const getSetting = <T>(key: string, defaultValue: T): T =>
   resolveSetting(
     vscode.workspace.getConfiguration("styluau").inspect<T>(key),
-    vscode.workspace.getConfiguration("stylua").inspect<T>(key),
+    vscode.workspace
+      .getConfiguration("stylua")
+      .inspect<T>(key === "styluauPath" ? "styluaPath" : key),
     defaultValue
   );
 

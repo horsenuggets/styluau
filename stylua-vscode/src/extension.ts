@@ -98,6 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
     github,
     outputChannel
   );
+  context.subscriptions.push(downloader, outputChannel);
 
   let cwdForVersionDetection =
     vscode.workspace.workspaceFolders?.[0].uri.fsPath;
@@ -214,7 +215,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (change) => {
-      if (change.affectsConfiguration("styluau")) {
+      if (
+        change.affectsConfiguration("styluau") ||
+        change.affectsConfiguration("stylua")
+      ) {
         try {
           styluauBinaryPath = await downloader.ensureStyluaExists(
             cwdForVersionDetection

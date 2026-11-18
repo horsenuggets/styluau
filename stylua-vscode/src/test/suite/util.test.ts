@@ -1,6 +1,11 @@
 import * as assert from "assert";
+import { readFileSync } from "fs";
+import * as path from "path";
+import { runInNewContext } from "vm";
+import * as vscode from "vscode";
 import {
   getAssetFilenamePatternForPlatform,
+  getSetting,
   InspectedSetting,
   parseStyluauVersion,
   resolveSetting,
@@ -20,16 +25,27 @@ suite("Utilities testing", () => {
     // Any explicit new value wins, including `false`
     const explicit: InspectedSetting<boolean> = { workspaceValue: false };
     assert.strictEqual(resolveSetting(explicit, legacy, true), false);
+    assert.strictEqual(
+      resolveSetting({ defaultLanguageValue: false }, legacy, false),
+      true
+    );
+    assert.strictEqual(
+      resolveSetting<string | null>(
+        { workspaceValue: null },
+        { globalValue: "legacy-binary" },
+        "default-binary"
+      ),
+      null
+    );
 
     // More specific scopes win within each configuration
     const precedence: (keyof InspectedSetting<boolean>)[] = [
       "workspaceFolderLanguageValue",
-      "workspaceFolderValue",
       "workspaceLanguageValue",
-      "workspaceValue",
       "globalLanguageValue",
+      "workspaceFolderValue",
+      "workspaceValue",
       "globalValue",
-      "defaultLanguageValue",
     ];
     for (const [index, key] of precedence.entries()) {
       const roots = precedence.slice(index + 1);
@@ -41,6 +57,90 @@ suite("Utilities testing", () => {
         resolveSetting(setting as InspectedSetting<boolean>, empty, false),
         true,
         `${key} should take precedence`
+      );
+    }
+  });
+
+  test("reads the renamed legacy binary path without overriding an explicit null", () => {
+    const getConfiguration = vscode.workspace.getConfiguration;
+    let current: InspectedSetting<string | null> = { defaultValue: null };
+    vscode.workspace.getConfiguration = (section) =>
+      ({
+        inspect: (key: string) => {
+          if (section === "styluau" && key === "styluauPath") {
+            return current;
+          }
+          if (section === "stylua" && key === "styluaPath") {
+            return { workspaceValue: "legacy-binary" };
+          }
+          return undefined;
+        },
+      } as vscode.WorkspaceConfiguration);
+    try {
+      assert.strictEqual(getSetting("styluauPath", null), "legacy-binary");
+      current = { workspaceValue: null };
+      assert.strictEqual(getSetting("styluauPath", null), null);
+      current = { workspaceValue: "new-binary" };
+      assert.strictEqual(getSetting("styluauPath", null), "new-binary");
+    } finally {
+      vscode.workspace.getConfiguration = getConfiguration;
+    }
+  });
+
+  test("builds with GitHub origins, an explicit endpoint, or no origin", () => {
+    const configPath = path.resolve(__dirname, "../../../webpack.config.js");
+    const source = readFileSync(configPath, "utf8");
+    const endpoint = "https://api.github.com/repos/example/formatter/releases";
+    for (const [origin, explicit, expected] of [
+      ["https://github.com/example/formatter.git", undefined, endpoint],
+      ["git@github.com:example/formatter.git", undefined, endpoint],
+      ["ssh://git@github.com/example/formatter.git", undefined, endpoint],
+      [undefined, undefined, null],
+      ["unsupported-origin", undefined, null],
+      [undefined, endpoint, endpoint],
+      ["https://github.com/other/formatter.git", endpoint, endpoint],
+    ]) {
+      const module = {
+        exports: [] as { plugins: { definitions: Record<string, string> }[] }[],
+      };
+      runInNewContext(source, {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        __dirname: path.dirname(configPath),
+        module,
+        process: {
+          env: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            STYLUAU_RELEASES_URL: explicit,
+          },
+        },
+        require: (id: string) => {
+          if (id === "path") {
+            return path;
+          }
+          if (id === "child_process") {
+            return {
+              execFileSync: () => {
+                if (!origin) {
+                  throw new Error("No origin");
+                }
+                return origin;
+              },
+            };
+          }
+          if (id === "webpack") {
+            return {
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              DefinePlugin: class {
+                constructor(public definitions: Record<string, string>) {}
+              },
+            };
+          }
+          throw new Error(`Unexpected module "${id}".`);
+        },
+      });
+      assert.strictEqual(
+        module.exports[0].plugins[0].definitions.STYLUAU_RELEASES_URL,
+        JSON.stringify(expected)
       );
     }
   });
