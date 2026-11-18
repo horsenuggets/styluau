@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-tables-hang-value.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/394
 export type DehydratedData = {
@@ -11,6 +12,5 @@ export type DehydratedData = {
 		| Array<Dehydrated>
 		| Array<Unserializable>
 		| { [string]: string | Dehydrated | Unserializable },
-	unserializable: Array<Array<string | number>>,
+	unserializable: Array<Array<string | number>>
 }
-

@@ -31,8 +31,7 @@ local g = if const resolved = resolveSomethingExpensive(inputA, inputB, inputC)
 local thing = makeSomething("Foo", {
 	Child = if local resolvedChild = resolveChild()
 		then makeSomething("Bar", {
-			scale = 1,
+			scale = 1
 		})
-		else makeSomething("Baz"),
+		else makeSomething("Baz")
 })
-

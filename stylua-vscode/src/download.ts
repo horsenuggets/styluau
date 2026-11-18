@@ -25,7 +25,7 @@ const getStyluaVersion = async (path: string, cwd?: string) => {
     const currentVersion = (
       await executeStylua(path, ["--version"], cwd)
     )?.trim();
-    return currentVersion.substring("stylua ".length);
+    return util.parseStyluauVersion(currentVersion);
   } catch (err) {
     return undefined;
   }
@@ -33,7 +33,7 @@ const getStyluaVersion = async (path: string, cwd?: string) => {
 
 export class StyluaDownloader implements vscode.Disposable {
   statusBarUpdateItem = vscode.window.createStatusBarItem(
-    "stylua.installUpdate",
+    "styluau.installUpdate",
     vscode.StatusBarAlignment.Right
   );
 
@@ -44,39 +44,39 @@ export class StyluaDownloader implements vscode.Disposable {
   ) {}
 
   public async findStylua(cwd?: string): Promise<StyluaInfo> {
-    // 1) If `stylua.styluaPath` has been specified, use that directly
+    // 1) If `styluau.styluauPath` has been specified, use that directly
     const settingPath = vscode.workspace
-      .getConfiguration("stylua")
-      .get<string | null>("styluaPath");
+      .getConfiguration("styluau")
+      .get<string | null>("styluauPath");
     if (settingPath) {
       this.outputChannel.info(
-        `Stylua path explicitly configured: ${settingPath}`
+        `StyLuau path explicitly configured: ${settingPath}`
       );
       return { path: settingPath, resolveMode: ResolveMode.configuration };
     }
 
-    // 2) Find a `stylua` binary available on PATH
+    // 2) Find a `styluau` binary available on PATH
     if (
       vscode.workspace
-        .getConfiguration("stylua")
+        .getConfiguration("styluau")
         .get<boolean>("searchBinaryInPATH")
     ) {
-      this.outputChannel.info("Searching for stylua on PATH");
-      const resolvedPath = await which("stylua", { nothrow: true });
+      this.outputChannel.info("Searching for styluau on PATH");
+      const resolvedPath = await which("styluau", { nothrow: true });
       if (resolvedPath) {
-        this.outputChannel.info(`Stylua found on PATH: ${resolvedPath}`);
+        this.outputChannel.info(`StyLuau found on PATH: ${resolvedPath}`);
         if (await getStyluaVersion(resolvedPath, cwd)) {
           return { path: resolvedPath, resolveMode: ResolveMode.path };
         } else {
           this.outputChannel.error(
-            "Stylua binary found on PATH failed to execute"
+            "StyLuau binary found on PATH failed to execute or returned an invalid version"
           );
         }
       }
     }
 
-    // 3) Fallback to bundled stylua version
-    this.outputChannel.info("Falling back to bundled StyLua version");
+    // 3) Fallback to bundled styluau version
+    this.outputChannel.info("Falling back to bundled StyLuau version");
     const downloadPath = vscode.Uri.joinPath(
       this.storageDirectory,
       util.getDownloadOutputFilename()
@@ -87,37 +87,37 @@ export class StyluaDownloader implements vscode.Disposable {
   public async ensureStyluaExists(
     cwd?: string
   ): Promise<StyluaInfo | undefined> {
-    const stylua = await this.findStylua(cwd);
+    const styluau = await this.findStylua(cwd);
 
-    if (stylua.resolveMode === ResolveMode.bundled) {
-      if (!(await util.fileExists(stylua.path))) {
+    if (styluau.resolveMode === ResolveMode.bundled) {
+      if (!(await util.fileExists(styluau.path))) {
         await vscode.workspace.fs.createDirectory(this.storageDirectory);
-        await this.downloadStyLuaVisual(util.getDesiredVersion());
+        await this.downloadStyLuauVisual(util.getDesiredVersion());
       }
-      stylua.version = await getStyluaVersion(stylua.path, cwd);
+      styluau.version = await getStyluaVersion(styluau.path, cwd);
 
       // Check bundled version matches requested version
       const desiredVersion = util.getDesiredVersion();
-      if (stylua.version && desiredVersion !== "latest") {
-        const desiredVersionSemver = semver.coerce(desiredVersion);
-        const styluaVersionSemver = semver.parse(stylua.version);
+      if (styluau.version && desiredVersion !== "latest") {
+        const desiredVersionSemver = semver.parse(desiredVersion);
+        const styluauVersionSemver = semver.parse(styluau.version);
         if (
           desiredVersionSemver &&
-          styluaVersionSemver &&
-          semver.neq(desiredVersionSemver, styluaVersionSemver)
+          styluauVersionSemver &&
+          semver.neq(desiredVersionSemver, styluauVersionSemver)
         ) {
-          this.openIncorrectVersionPrompt(stylua.version, desiredVersion);
+          this.openIncorrectVersionPrompt(styluau.version, desiredVersion);
         }
       }
 
       // Check for latest version
       if (
-        !vscode.workspace.getConfiguration("stylua").get("disableVersionCheck")
+        !vscode.workspace.getConfiguration("styluau").get("disableVersionCheck")
       ) {
         try {
           const latestRelease = await this.github.getRelease("latest");
           if (
-            stylua.version !==
+            styluau.version !==
             (latestRelease.tagName.startsWith("v")
               ? latestRelease.tagName.substr(1)
               : latestRelease.tagName)
@@ -128,7 +128,7 @@ export class StyluaDownloader implements vscode.Disposable {
           }
         } catch (err) {
           vscode.window.showWarningMessage(
-            `Error checking the selected StyLua version, falling back to the currently installed version:\n${err}`
+            `Error checking the selected StyLuau version, falling back to the currently installed version:\n${err}`
           );
           if (!this.github.authenticated) {
             const option = await vscode.window.showInformationMessage(
@@ -146,27 +146,27 @@ export class StyluaDownloader implements vscode.Disposable {
       } else {
         this.statusBarUpdateItem.hide();
       }
-    } else if (stylua.resolveMode === ResolveMode.configuration) {
-      if (!(await util.fileExists(stylua.path))) {
+    } else if (styluau.resolveMode === ResolveMode.configuration) {
+      if (!(await util.fileExists(styluau.path))) {
         vscode.window.showErrorMessage(
-          `The path given for StyLua (${stylua.path}) does not exist`
+          `The path given for StyLuau (${styluau.path}) does not exist`
         );
         return;
       }
-      stylua.version = await getStyluaVersion(stylua.path, cwd);
-    } else if (stylua.resolveMode === ResolveMode.path) {
-      stylua.version = await getStyluaVersion(stylua.path, cwd);
+      styluau.version = await getStyluaVersion(styluau.path, cwd);
+    } else if (styluau.resolveMode === ResolveMode.path) {
+      styluau.version = await getStyluaVersion(styluau.path, cwd);
     }
 
-    return stylua;
+    return styluau;
   }
 
-  public downloadStyLuaVisual(version: string): Thenable<void> {
+  public downloadStyLuauVisual(version: string): Thenable<void> {
     return vscode.window.withProgress(
       {
         cancellable: false,
         location: vscode.ProgressLocation.Notification,
-        title: `Downloading StyLua (${version})`,
+        title: `Downloading StyLuau (${version})`,
       },
       () => this.downloadStylua(version)
     );
@@ -190,7 +190,7 @@ export class StyluaDownloader implements vscode.Disposable {
           fetch(asset.downloadUrl, {
             headers: {
               // eslint-disable-next-line @typescript-eslint/naming-convention
-              "User-Agent": "stylua-vscode",
+              "User-Agent": "styluau-vscode",
             },
           })
             .then((res) => res.body.pipe(unzip.Parse()))
@@ -207,15 +207,18 @@ export class StyluaDownloader implements vscode.Disposable {
         });
       }
     }
+    throw new Error(
+      `No compatible StyLuau archive found in release ${release.tagName}`
+    );
   }
 
   private showUpdateAvailable(release: GitHubRelease) {
-    this.statusBarUpdateItem.name = "StyLua Update";
-    this.statusBarUpdateItem.text = `StyLua update available (${release.tagName}) $(cloud-download)`;
-    this.statusBarUpdateItem.tooltip = "Click to update StyLua";
+    this.statusBarUpdateItem.name = "StyLuau Update";
+    this.statusBarUpdateItem.text = `StyLuau update available (${release.tagName}) $(cloud-download)`;
+    this.statusBarUpdateItem.tooltip = "Click to update StyLuau";
     this.statusBarUpdateItem.command = {
-      title: "Update StyLua",
-      command: "stylua.installUpdate",
+      title: "Update StyLuau",
+      command: "styluau.installUpdate",
       arguments: [release],
     };
     this.statusBarUpdateItem.backgroundColor = new vscode.ThemeColor(
@@ -230,13 +233,13 @@ export class StyluaDownloader implements vscode.Disposable {
   ) {
     vscode.window
       .showInformationMessage(
-        `The currently installed version of StyLua (${currentVersion}) does not match the requested version (${requestedVersion})`,
+        `The currently installed version of StyLuau (${currentVersion}) does not match the requested version (${requestedVersion})`,
         "Install"
       )
       .then((option) => {
         switch (option) {
           case "Install":
-            vscode.commands.executeCommand("stylua.reinstall");
+            vscode.commands.executeCommand("styluau.reinstall");
             break;
         }
       });

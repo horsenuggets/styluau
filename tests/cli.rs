@@ -14,7 +14,7 @@ macro_rules! construct_tree {
 }
 
 fn create_stylua() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin!("stylua"))
+    Command::new(assert_cmd::cargo::cargo_bin!("styluau"))
 }
 
 #[test]
@@ -48,6 +48,153 @@ fn test_format_file() {
     cwd.child("foo.lua").assert("local x = 1\n");
 
     cwd.close().unwrap();
+}
+
+#[test]
+fn test_styluau_config_trailing_comma() {
+    for (setting, expected) in [
+        ("false", "local x = {\n\t1\n}\n"),
+        ("true", "local x = {\n\t1,\n}\n"),
+    ] {
+        let cwd = construct_tree!({
+            "foo.lua": "local x = {\n1,\n}\n",
+        });
+        cwd.child("styluau.toml")
+            .write_str(&format!("table_trailing_comma = {}", setting))
+            .unwrap();
+        create_stylua()
+            .current_dir(cwd.path())
+            .arg("foo.lua")
+            .assert()
+            .success();
+        cwd.child("foo.lua").assert(expected);
+    }
+}
+
+#[test]
+fn test_ordered_glob_overrides_per_file() {
+    let cwd = construct_tree!({
+        "styluau.toml": "indent_type = 'Spaces'\nindent_width = 4\n[[overrides]]\nfiles = ['*.lua']\nindent_width = 2\n[[overrides]]\nfiles = ['special.lua']\nindent_width = 3\n",
+        "special.lua": "if true then\nprint(1)\nend\n",
+        "other.lua": "if true then\nprint(1)\nend\n",
+        "nested/other.lua": "if true then\nprint(1)\nend\n",
+    });
+    create_stylua()
+        .current_dir(cwd.path())
+        .arg(".")
+        .assert()
+        .success();
+    cwd.child("special.lua")
+        .assert("if true then\n   print(1)\nend\n");
+    cwd.child("other.lua")
+        .assert("if true then\n  print(1)\nend\n");
+    cwd.child("nested/other.lua")
+        .assert("if true then\n    print(1)\nend\n");
+}
+
+#[test]
+fn test_glob_overrides_explicit_config_and_stdin() {
+    let cwd = construct_tree!({
+        "config/styluau.toml": "indent_type = 'Spaces'\nindent_width = 4\n[[overrides]]\nfiles = ['*.lua']\nindent_width = 2\n",
+    });
+    for (filepath, width, cli) in [
+        (Some("config/a.lua"), 2, false),
+        (None, 4, false),
+        (Some("config/a.lua"), 3, true),
+        (Some("a.lua"), 4, false),
+    ] {
+        let mut cmd = create_stylua();
+        cmd.current_dir(cwd.path())
+            .args(["--config-path", "config/styluau.toml"]);
+        if let Some(filepath) = filepath {
+            cmd.args(["--stdin-filepath", filepath]);
+        }
+        if cli {
+            cmd.args(["--indent-width", "3"]);
+        }
+        cmd.arg("-")
+            .write_stdin("if true then\nprint(1)\nend\n")
+            .assert()
+            .success()
+            .stdout(format!(
+                "if true then\n{}print(1)\nend\n",
+                " ".repeat(width)
+            ));
+    }
+}
+
+#[test]
+#[cfg(feature = "luau")]
+fn test_fusion_glob_keeps_unrelated_calls() {
+    let cwd = construct_tree!({
+        "styluau.toml": "syntax = 'Luau'\ncall_parentheses = 'Always'\n[[overrides]]\nfiles = ['ui/**/*.luau']\nfusion = true\nfusion_scope_names = ['panelScope']\n",
+        "ui/component.luau": "local x = panelScope:New(\"Frame\")({ child = render({}) })\nlocal y = render(\"ordinary\")\n",
+        "other.luau": "local x = panelScope:New(\"Frame\")({})\n",
+    });
+    create_stylua()
+        .current_dir(cwd.path())
+        .arg(".")
+        .assert()
+        .success();
+    let formatted = std::fs::read_to_string(cwd.child("ui/component.luau").path()).unwrap();
+    assert!(
+        formatted.contains("panelScope:New \"Frame\" {"),
+        "{}",
+        formatted
+    );
+    assert!(formatted.contains("render({})"), "{}", formatted);
+    assert!(formatted.contains("render(\"ordinary\")"), "{}", formatted);
+    cwd.child("other.luau")
+        .assert("local x = panelScope:New(\"Frame\")({})\n");
+}
+
+#[test]
+fn test_glob_overrides_invalid_pattern() {
+    let cwd = construct_tree!({
+        "styluau.toml": "[[overrides]]\nfiles = ['[']\n",
+        "test.lua": "print(1)\n",
+    });
+    let result = create_stylua()
+        .current_dir(cwd.path())
+        .arg("test.lua")
+        .assert()
+        .failure();
+    assert!(String::from_utf8_lossy(&result.get_output().stderr).contains("Invalid glob"));
+}
+
+#[test]
+fn test_styluau_identity_and_ignore() {
+    create_stylua()
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout(format!("styluau {}\n", env!("CARGO_PKG_VERSION")));
+    let cwd = construct_tree!({
+        ".styluauignore": "ignored/",
+        "foo.lua": "local   x    =   1",
+        "ignored/bar.lua": "local   x    =   1",
+    });
+    create_stylua()
+        .current_dir(cwd.path())
+        .arg(".")
+        .assert()
+        .success();
+    cwd.child("foo.lua").assert("local x = 1\n");
+    cwd.child("ignored/bar.lua").assert("local   x    =   1");
+}
+
+#[test]
+fn test_styluau_ignore_for_explicit_file() {
+    let cwd = construct_tree!({
+        ".styluauignore": "foo.lua",
+        "foo.lua": "local   x    =   1",
+    });
+    create_stylua()
+        .current_dir(cwd.path())
+        .args(["--respect-ignores", "foo.lua"])
+        .assert()
+        .success();
+    cwd.child("foo.lua").assert("local   x    =   1");
 }
 
 #[test]
@@ -495,7 +642,7 @@ fn test_editorconfig_child_without_root_merges_with_parent() {
 
     // indent from parent, quotes from child
     cwd.child("child/foo.lua")
-        .assert("local foo = {\n  a = 1,\n}\n\nlocal bar = ''\n");
+        .assert("local foo = {\n  a = 1\n}\n\nlocal bar = ''\n");
 
     cwd.close().unwrap();
 }
@@ -517,7 +664,7 @@ fn test_editorconfig_root_true_stops_upward_search() {
 
     // indent_size=4 from child; parent's quote_type=single must NOT be inherited
     cwd.child("child/foo.lua")
-        .assert("local foo = {\n    a = 1,\n}\n\nlocal bar = \"\"\n");
+        .assert("local foo = {\n    a = 1\n}\n\nlocal bar = \"\"\n");
 
     cwd.close().unwrap();
 }
@@ -539,7 +686,7 @@ fn test_editorconfig_closer_config_takes_precedence() {
 
     // indent_size=4 from child overrides parent's 2; quote_type=single inherited from parent
     cwd.child("child/foo.lua")
-        .assert("local foo = {\n    a = 1,\n}\n\nlocal bar = ''\n");
+        .assert("local foo = {\n    a = 1\n}\n\nlocal bar = ''\n");
 
     cwd.close().unwrap();
 }
@@ -562,7 +709,7 @@ fn test_editorconfig_merges_across_three_directory_levels() {
 
     // indent from root, quotes from middle, max_line_length from inner
     cwd.child("middle/inner/foo.lua")
-        .assert("local foo = {\n  a = 1,\n}\n\nlocal bar = ''\n");
+        .assert("local foo = {\n  a = 1\n}\n\nlocal bar = ''\n");
 
     cwd.close().unwrap();
 }

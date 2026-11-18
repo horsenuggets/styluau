@@ -6,5 +6,5 @@ COPY . ./
 RUN cargo build ${CARGO_FLAGS}
 
 FROM gcr.io/distroless/cc
-COPY --from=build /app/target/release/stylua /
-CMD ["./stylua"]
+COPY --from=build /app/target/release/styluau /
+CMD ["./styluau"]

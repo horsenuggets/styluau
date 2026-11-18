@@ -379,7 +379,7 @@ pub fn format_multiline_table<T, U>(
     shape: Shape,
 ) -> (ContainedSpan, Punctuated<T>)
 where
-    T: std::fmt::Display + Node + Clone,
+    T: std::fmt::Display + Node + Clone + UpdateTrailingTrivia,
     U: Fn(&Context, &T, TableType, Shape) -> (T, Vec<Token>),
 {
     let table_type = TableType::MultiLine;
@@ -388,15 +388,16 @@ where
     let braces = create_table_braces(ctx, start_brace, end_brace, table_type, shape);
     let mut shape = shape.reset().increment_additional_indent(); // Will take new line, and additional indentation
 
-    let current_fields = fields.pairs();
+    let mut current_fields = fields.pairs().peekable();
     let mut fields = Punctuated::new();
 
-    let mut ctx = *ctx;
+    let mut ctx = ctx.clone();
 
-    for pair in current_fields {
+    while let Some(pair) = current_fields.next() {
         let (field, punctuation) = (pair.value(), pair.punctuation());
 
         ctx = ctx.check_toggle_formatting(field);
+        let field_ctx = ctx.apply_fusion_directives(field);
 
         // If the field is ignored, leave it and its punctuation exactly as written
         if ctx.should_format_node(field) == FormatNode::Skip {
@@ -408,7 +409,8 @@ where
         shape = shape.reset().add_width(1); // Add 1 to include the trailing comma at the end
 
         // Format the field
-        let (formatted_field, mut trailing_trivia) = formatter(&ctx, field, table_type, shape);
+        let (formatted_field, mut trailing_trivia) =
+            formatter(&field_ctx, field, table_type, shape);
 
         // If trivia is just whitespace, ignore it completely
         if trailing_trivia
@@ -442,9 +444,18 @@ where
             None => TokenReference::symbol(",").unwrap(),
         }
         .update_trailing_trivia(FormatTriviaType::Append(trailing_trivia));
-        let formatted_punctuation = Some(symbol);
-
-        fields.push(Pair::new(formatted_field, formatted_punctuation))
+        if current_fields.peek().is_none() && !ctx.config().table_trailing_comma {
+            let trivia = symbol
+                .leading_trivia()
+                .chain(symbol.trailing_trivia())
+                .cloned()
+                .collect();
+            let formatted_field =
+                formatted_field.update_trailing_trivia(FormatTriviaType::Append(trivia));
+            fields.push(Pair::new(formatted_field, None));
+        } else {
+            fields.push(Pair::new(formatted_field, Some(symbol)));
+        }
     }
 
     (braces, fields)

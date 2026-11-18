@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-comments-2.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/318
 local a = {
@@ -22,14 +23,14 @@ local a = {
 	-- key trailing comment
 	-- equals leading comment
 	-- equals trailing comment
-	["h"] = baz(),
+	["h"] = baz()
 }
 
 local b = {
 	-- a comment breaks it
 	b = {
-		c = "d",
-	},
+		c = "d"
+	}
 }
 
 local c = {
@@ -38,6 +39,5 @@ local c = {
 
 	-- another comment group
 	-- dont group with the above comment group
-	x = y,
+	x = y
 }
-

@@ -1,10 +1,10 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs-full_moon/table-constructors-7.lua
 ---
 local blacklist = {
 	["Audio file failed to load (18)."] = true,
 	["HTTP 0 (HTTP 429 (HTTP/1.1 429 ProvisionedThroughputExceeded))"] = true,
-	["LoadCharacter can only be called when Player is in the world"] = true,
+	["LoadCharacter can only be called when Player is in the world"] = true
 }
-

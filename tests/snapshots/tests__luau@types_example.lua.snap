@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/types_example.lua
 ---
 local srcWorkspace = script.Parent.Parent
 local PromiseModule = require(srcWorkspace.luaUtils.Promise)
@@ -14,7 +15,7 @@ export type SubscriptionArgs = {
 	variableValues: { [string]: any },
 	operationName: string?,
 	fieldResolver: Resolver<any, any>?,
-	subscribeFieldResolver: Resolver<any, any>?,
+	subscribeFieldResolver: Resolver<any, any>?
 }
 
 local function subscribe(args: SubscriptionArgs): Promise<Result>
@@ -33,6 +34,5 @@ end
 
 return {
 	subscribe = subscribe,
-	createEventStream = createEventStream,
+	createEventStream = createEventStream
 }
-

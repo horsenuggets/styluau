@@ -19,7 +19,7 @@ type MultiWrite = {
 type MultiNested = {
 	read {
 		Name: string,
-		Other: number,
+		Other: number
 	}
 }
 
@@ -39,12 +39,11 @@ type IndexerAccess = { read [number]: Service }
 type NoAccess = { Service }
 
 type BoundaryFits = {
-	field: { read AccessModifierShapeAccountingBoundaryServiceTypeNameFillingTheAvailableColumnBudgetExactlyHereOkX | B },
+	field: { read AccessModifierShapeAccountingBoundaryServiceTypeNameFillingTheAvailableColumnBudgetExactlyHereOkX | B }
 }
 
 type BoundaryHangs = {
 	field: {
 		read AccessModifierShapeAccountingBoundaryServiceTypeNameFillingTheAvailableColumnBudgetExactlyHereOkXX | B
-	},
+	}
 }
-

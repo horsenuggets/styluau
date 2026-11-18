@@ -5,11 +5,11 @@ const { spawnSync } = require("child_process");
 const path = require("path");
 
 const PLATFORMS = {
-  "linux-x64":    { pkg: "@johnnymorganz/stylua-bin-linux-x64",   bin: "stylua" },
-  "linux-arm64":  { pkg: "@johnnymorganz/stylua-bin-linux-arm64",  bin: "stylua" },
-  "darwin-x64":   { pkg: "@johnnymorganz/stylua-bin-darwin-x64",  bin: "stylua" },
-  "darwin-arm64": { pkg: "@johnnymorganz/stylua-bin-darwin-arm64", bin: "stylua" },
-  "win32-x64":    { pkg: "@johnnymorganz/stylua-bin-win32-x64",   bin: "stylua.exe" },
+  "linux-x64":    { pkg: "styluau-bin-linux-x64",   bin: "styluau" },
+  "linux-arm64":  { pkg: "styluau-bin-linux-arm64",  bin: "styluau" },
+  "darwin-x64":   { pkg: "styluau-bin-darwin-x64",  bin: "styluau" },
+  "darwin-arm64": { pkg: "styluau-bin-darwin-arm64", bin: "styluau" },
+  "win32-x64":    { pkg: "styluau-bin-win32-x64",   bin: "styluau.exe" },
 };
 
 const key = `${process.platform}-${process.arch}`;
@@ -26,8 +26,8 @@ try {
   binPath = path.join(pkgDir, platform.bin);
 } catch {
   console.error(
-    `Could not find the StyLua binary for your platform (${key}).\n` +
-    `Try reinstalling @johnnymorganz/stylua-bin.`
+    `Could not find the StyLuau binary for your platform (${key}).\n` +
+    `Try reinstalling styluau-bin.`
   );
   process.exit(1);
 }

@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/function-def-multiline.lua
 ---
 function foo(foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo, barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr) end
 
@@ -44,6 +45,5 @@ local x = {
 		bar --test
 	)
 		print("test")
-	end,
+	end
 }
-

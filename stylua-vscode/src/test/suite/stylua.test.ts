@@ -6,7 +6,7 @@ suite("formatCode", () => {
   let outputChannel: vscode.LogOutputChannel;
 
   setup(() => {
-    outputChannel = vscode.window.createOutputChannel("StyLua Test", {
+    outputChannel = vscode.window.createOutputChannel("StyLuau Test", {
       log: true,
     });
   });
@@ -18,7 +18,7 @@ suite("formatCode", () => {
   // Regression test for https://github.com/JohnnyMorganz/StyLua/issues/1001
   test("rejects when the binary path does not exist", async () => {
     await assert.rejects(
-      formatCode(outputChannel, "/nonexistent/path/to/stylua", "local x = 1\n")
+      formatCode(outputChannel, "/nonexistent/path/to/styluau", "local x = 1\n")
     );
   });
 });

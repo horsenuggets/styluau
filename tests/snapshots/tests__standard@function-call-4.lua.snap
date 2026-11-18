@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/function-call-4.lua
 ---
 Roact.createElement("ImageLabel", {
 	Size = UDim2.new(
@@ -9,6 +10,5 @@ Roact.createElement("ImageLabel", {
 			+ 10,
 		0,
 		20
-	),
+	)
 })
-

@@ -9,7 +9,7 @@ use full_moon::ast::luau::{
     TypeSpecifier, TypeUnion,
 };
 use full_moon::ast::{
-    punctuated::Punctuated, span::ContainedSpan, AnonymousFunction, BinOp, Call, Expression,
+    punctuated::Punctuated, span::ContainedSpan, AnonymousFunction, BinOp, Call, Expression, Field,
     FunctionArgs, FunctionBody, FunctionCall, FunctionName, Index, LastStmt, MethodCall, Parameter,
     Prefix, Return, Stmt, Suffix, TableConstructor, UnOp, Var, VarExpression,
 };
@@ -216,6 +216,34 @@ define_update_trivia!(BinOp, |this, leading, trailing| {
         #[cfg(feature = "lua53")]
         Tilde,
     })
+});
+
+define_update_trailing_trivia!(Field, |this, trailing| {
+    match this {
+        Field::ExpressionKey {
+            brackets,
+            key,
+            equal,
+            value,
+        } => Field::ExpressionKey {
+            brackets: brackets.clone(),
+            key: key.clone(),
+            equal: equal.clone(),
+            value: Box::new(value.update_trailing_trivia(trailing)),
+        },
+        Field::NameKey { key, equal, value } => Field::NameKey {
+            key: key.clone(),
+            equal: equal.clone(),
+            value: Box::new(value.update_trailing_trivia(trailing)),
+        },
+        Field::NoKey(expression) => Field::NoKey(expression.update_trailing_trivia(trailing)),
+        #[cfg(feature = "cfxlua")]
+        Field::SetConstructor { dot, name } => Field::SetConstructor {
+            dot: dot.clone(),
+            name: name.update_trailing_trivia(trailing),
+        },
+        other => panic!("unknown node {:?}", other),
+    }
 });
 
 define_update_trivia!(ContainedSpan, |this, leading, trailing| {

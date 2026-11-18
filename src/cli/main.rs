@@ -15,7 +15,7 @@ use std::time::Instant;
 use thiserror::Error;
 use threadpool::ThreadPool;
 
-use stylua_lib::{format_code, Config, OutputVerification, Range};
+use styluau_lib::{format_code, Config, OutputVerification, Range};
 
 mod config;
 #[cfg(feature = "lsp")]
@@ -219,7 +219,7 @@ fn format(opt: opt::Opt) -> Result<i32> {
         }
         #[cfg(not(feature = "lsp"))]
         {
-            bail!("attempted to run stylua in LSP mode, but this binary was not built with 'lsp' feature enabled")
+            bail!("attempted to run styluau in LSP mode, but this binary was not built with 'lsp' feature enabled")
         }
     }
 
@@ -270,12 +270,15 @@ fn format(opt: opt::Opt) -> Result<i32> {
         .git_exclude(!opt.no_ignore_vcs)
         .git_global(!opt.no_ignore_vcs)
         .git_ignore(!opt.no_ignore_vcs)
-        .add_custom_ignore_filename(".styluaignore");
+        .add_custom_ignore_filename(".styluaignore")
+        .add_custom_ignore_filename(".styluauignore");
 
-    // Look for an ignore file in the current working directory
-    let ignore_path = cwd.join(".styluaignore");
-    if ignore_path.is_file() {
-        walker_builder.add_ignore(ignore_path);
+    // Look for ignore files in the current working directory
+    for name in [".styluaignore", ".styluauignore"] {
+        let ignore_path = cwd.join(name);
+        if ignore_path.is_file() {
+            walker_builder.add_ignore(ignore_path);
+        }
     }
 
     let use_default_glob = match opt.glob {
@@ -344,8 +347,8 @@ fn format(opt: opt::Opt) -> Result<i32> {
                 Err(err) if matches!(output_format, opt::OutputFormat::Json) => {
                     match err.downcast_ref::<ErrorFileWrapper>() {
                         Some(ErrorFileWrapper { file, error }) => {
-                            match error.downcast_ref::<stylua_lib::Error>() {
-                                Some(stylua_lib::Error::ParseError(err)) => {
+                            match error.downcast_ref::<styluau_lib::Error>() {
+                                Some(styluau_lib::Error::ParseError(err)) => {
                                     let structured_err =
                                         convert_parse_error_to_json(file, err.to_vec());
                                     // Force write to stderr directly
@@ -543,7 +546,7 @@ fn main() {
         LevelFilter::Warn
     };
 
-    env_logger::Builder::from_env("STYLUA_LOG")
+    env_logger::Builder::from_env("STYLUAU_LOG")
         .filter(None, level_filter)
         .format(move |buf, record| {
             // Side effect: set exit code

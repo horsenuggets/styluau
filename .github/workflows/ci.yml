@@ -1,4 +1,4 @@
-name: Test StyLua
+name: Test StyLuau
 on:
   push:
     branches:
@@ -115,7 +115,7 @@ jobs:
         env:
           DOCKER_METADATA_PR_HEAD_SHA: "true"
         with:
-          images: johnnymorganz/stylua
+          images: ${{ github.repository }}
           tags: |
             type=sha
 
@@ -132,7 +132,7 @@ jobs:
 
       - name: Test
         run: |
-          docker run --rm ${{ steps.meta.outputs.tags }} /stylua --help
+          docker run --rm ${{ steps.meta.outputs.tags }} /styluau --help
 
   lint:
     runs-on: ubuntu-latest

@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/hang-prefix-ignore-string.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/508
 exports.ScalarLeafsRule = function(context)
@@ -20,7 +21,6 @@ exports.ScalarLeafsRule = function(context)
 					)
 				end
 			end
-		end,
+		end
 	}
 end
-

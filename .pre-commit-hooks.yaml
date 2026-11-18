@@ -1,24 +1,24 @@
 ---
-- id: stylua
-  name: StyLua (cargo)
+- id: styluau
+  name: StyLuau (cargo)
   description: An opinionated Lua code formatter
-  entry: stylua
+  entry: styluau
   language: rust
   types:
     - lua
 
-- id: stylua-system
-  name: StyLua (system)
+- id: styluau-system
+  name: StyLuau (system)
   description: An opinionated Lua code formatter
-  entry: stylua
+  entry: styluau
   language: system
   types:
     - lua
 
-- id: stylua-github
-  name: StyLua (Github)
+- id: styluau-github
+  name: StyLuau (Github)
   description: An opinionated Lua code formatter. Downloads Github release
-  entry: stylua
+  entry: styluau
   language: python
   types:
     - lua

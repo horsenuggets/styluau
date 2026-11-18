@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs-ignore/multiline-ignore-table-field.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/705
 
@@ -9,6 +10,5 @@ require("foo").bar({
 	baz      =0,
 	foo   =   2,
 	-- stylua: ignore end
-	bar = 1234,
+	bar = 1234
 })
-

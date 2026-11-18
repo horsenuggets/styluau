@@ -12,6 +12,8 @@ mod context;
 #[cfg(feature = "editorconfig")]
 pub mod editorconfig;
 mod formatters;
+mod fusion_analysis;
+mod fusion_directives;
 mod shape;
 mod sort_requires;
 mod verify_ast;
@@ -231,7 +233,7 @@ pub enum SpaceAfterFunctionNames {
 }
 
 /// The configuration to use when formatting.
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm-bindgen"), wasm_bindgen)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
@@ -282,6 +284,16 @@ pub struct Config {
     /// * if space_after_function_names is set to [`SpaceAfterFunctionNames::Calls`] a space is used only for calls.
     /// * if space_after_function_names is set to [`SpaceAfterFunctionNames::Always`] a space is used for both definitions and calls.
     pub space_after_function_names: SpaceAfterFunctionNames,
+    /// Whether multiline tables have a trailing comma.
+    pub table_trailing_comma: bool,
+    /// Whether to omit call parentheses for supported Fusion constructors.
+    pub fusion: bool,
+    /// Receiver names recognized for supported Fusion constructors.
+    #[cfg_attr(
+        all(target_arch = "wasm32", feature = "wasm-bindgen"),
+        wasm_bindgen(skip)
+    )]
+    pub fusion_scope_names: Vec<String>,
 }
 
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm-bindgen"), wasm_bindgen)]
@@ -289,6 +301,20 @@ impl Config {
     /// Creates a new Config with the default values
     pub fn new() -> Self {
         Config::default()
+    }
+
+    /// Returns the receiver names recognized by Fusion formatting.
+    #[cfg(all(target_arch = "wasm32", feature = "wasm-bindgen"))]
+    #[wasm_bindgen(getter = fusion_scope_names)]
+    pub fn wasm_fusion_scope_names(&self) -> Vec<String> {
+        self.fusion_scope_names.clone()
+    }
+
+    /// Sets the receiver names recognized by Fusion formatting.
+    #[cfg(all(target_arch = "wasm32", feature = "wasm-bindgen"))]
+    #[wasm_bindgen(setter = fusion_scope_names)]
+    pub fn set_wasm_fusion_scope_names(&mut self, names: Vec<String>) {
+        self.fusion_scope_names = names;
     }
 }
 
@@ -308,6 +334,9 @@ impl Default for Config {
             sort_requires: SortRequiresConfig::default(),
             space_after_function_names: SpaceAfterFunctionNames::default(),
             block_newline_gaps: BlockNewlineGaps::default(),
+            table_trailing_comma: false,
+            fusion: false,
+            fusion_scope_names: vec!["scope".into(), "fusion".into()],
         }
     }
 }
@@ -396,11 +425,14 @@ pub enum Error {
     /// The input AST has a parsing error.
     #[error("error parsing: {}", print_full_moon_errors(.0))]
     ParseError(Vec<full_moon::Error>),
+    /// A Fusion directive is malformed or has mismatched region boundaries.
+    #[error("invalid Fusion directive: {0}")]
+    FusionDirectiveError(String),
     /// The output AST after formatting generated a parse error. This is a definite error.
-    #[error("INTERNAL ERROR: Output AST generated a syntax error. Please report this at https://github.com/johnnymorganz/stylua/issues: {}", print_full_moon_errors(.0))]
+    #[error("INTERNAL ERROR: StyLuau generated a syntax error. Please report this to the StyLuau project: {}", print_full_moon_errors(.0))]
     VerificationAstError(Vec<full_moon::Error>),
     /// The output AST after formatting differs from the input AST.
-    #[error("INTERNAL WARNING: Output AST may be different to input AST. Code correctness may have changed. Please examine the formatting diff and report any issues at https://github.com/johnnymorganz/stylua/issues")]
+    #[error("INTERNAL WARNING: Output AST may be different to input AST. Code correctness may have changed. Please examine the formatting diff and report any issues to the StyLuau project.")]
     VerificationAstDifference,
 }
 
@@ -412,6 +444,8 @@ pub fn format_ast(
     range: Option<Range>,
     verify_output: OutputVerification,
 ) -> Result<Ast, Error> {
+    let analyze_fusion = fusion_directives::validate(&input_ast)? || config.fusion;
+
     // Clone the input AST only if we are verifying, to later use for checking
     let input_ast_for_verification = if let OutputVerification::Full = verify_output {
         Some(input_ast.to_owned())
@@ -419,27 +453,34 @@ pub fn format_ast(
         None
     };
 
+    let syntax = config.syntax;
+    let sort_requires_enabled = config.sort_requires.enabled;
     let ctx = Context::new(config, range);
 
     // Perform require sorting beforehand if necessary
-    let input_ast = match config.sort_requires.enabled {
+    let input_ast = match sort_requires_enabled {
         true => sort_requires::sort_requires(&ctx, input_ast),
         false => input_ast,
     };
 
+    let ctx = if analyze_fusion {
+        ctx.with_fusion_calls(fusion_analysis::analyze(&input_ast))
+    } else {
+        ctx
+    };
     let code_formatter = formatters::CodeFormatter::new(ctx);
     let ast = code_formatter.format(input_ast);
 
     // If we are verifying, reparse the output then check it matches the original input
     if let Some(input_ast) = input_ast_for_verification {
         let output = ast.to_string();
-        let reparsed_output =
-            match full_moon::parse_fallible(&output, config.syntax.into()).into_result() {
-                Ok(ast) => ast,
-                Err(error) => {
-                    return Err(Error::VerificationAstError(error));
-                }
-            };
+        let reparsed_output = match full_moon::parse_fallible(&output, syntax.into()).into_result()
+        {
+            Ok(ast) => ast,
+            Err(error) => {
+                return Err(Error::VerificationAstError(error));
+            }
+        };
 
         let mut ast_verifier = verify_ast::AstVerifier::new();
         if !ast_verifier.compare(input_ast, reparsed_output) {

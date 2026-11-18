@@ -28,7 +28,7 @@ export function formatCode(
     }
 
     const configPath = vscode.workspace
-      .getConfiguration("stylua")
+      .getConfiguration("styluau")
       .get<string>("configPath");
     if (configPath && configPath.trim() !== "") {
       args.push("--config-path");
@@ -36,11 +36,13 @@ export function formatCode(
     }
 
     if (
-      vscode.workspace.getConfiguration("stylua").get("searchParentDirectories")
+      vscode.workspace
+        .getConfiguration("styluau")
+        .get("searchParentDirectories")
     ) {
       args.push("--search-parent-directories");
     }
-    if (vscode.workspace.getConfiguration("stylua").get("verify")) {
+    if (vscode.workspace.getConfiguration("styluau").get("verify")) {
       args.push("--verify");
     }
 
@@ -60,7 +62,7 @@ export function formatCode(
     });
     child.stderr.on("data", (data) => reject(data.toString()));
     child.on("error", (err) =>
-      reject(`Failed to start StyLua: ${err.message}`)
+      reject(`Failed to start StyLuau: ${err.message}`)
     );
     child.stdin.on("error", () => {
       // Suppress EPIPE when the process failed to spawn and stdin is already closed

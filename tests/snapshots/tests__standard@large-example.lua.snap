@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/large-example.lua
 ---
 --[[
 	Taken from: https://github.com/evaera/roblox-lua-promise
@@ -51,7 +52,7 @@ local function makeEnum(enumName, members)
 		end,
 		__newindex = function()
 			error(string.format("Creating new members in %s is not allowed!", enumName), 2)
-		end,
+		end
 	})
 end
 
@@ -67,8 +68,8 @@ do
 			"ExecutionError",
 			"AlreadyCancelled",
 			"NotResolvedInTime",
-			"TimedOut",
-		}),
+			"TimedOut"
+		})
 	}
 	Error.__index = Error
 
@@ -81,7 +82,7 @@ do
 			kind = options.kind,
 			parent = parent,
 			createdTick = os.clock(),
-			createdTrace = debug.traceback(),
+			createdTrace = debug.traceback()
 		}, Error)
 	end
 
@@ -123,7 +124,7 @@ do
 
 	function Error:__tostring()
 		local errorStrings = {
-			string.format("-- Promise.Error(%s) --", self.kind or "?"),
+			string.format("-- Promise.Error(%s) --", self.kind or "?")
 		}
 
 		for _, runtimeError in ipairs(self:getErrorChain()) do
@@ -131,7 +132,7 @@ do
 				errorStrings,
 				table.concat({
 					runtimeError.trace or runtimeError.error,
-					runtimeError.context,
+					runtimeError.context
 				}, "\n")
 			)
 		end
@@ -171,7 +172,7 @@ local function makeErrorHandler(traceback)
 			error = err,
 			kind = Error.Kind.ExecutionError,
 			trace = debug.traceback(tostring(err), 2),
-			context = "Promise created at:\n\n" .. traceback,
+			context = "Promise created at:\n\n" .. traceback
 		})
 	end
 end
@@ -207,7 +208,7 @@ local Promise = {
 	Error = Error,
 	Status = makeEnum("Promise.Status", { "Started", "Resolved", "Rejected", "Cancelled" }),
 	_getTime = os.clock,
-	_timeEvent = game:GetService("RunService").Heartbeat,
+	_timeEvent = game:GetService("RunService").Heartbeat
 }
 Promise.prototype = {}
 Promise.__index = Promise.prototype
@@ -260,7 +261,7 @@ function Promise._new(traceback, callback, parent)
 
 		-- Consumers are Promises that have chained onto this one.
 		-- We track them for cancellation propagation downstream.
-		_consumers = setmetatable({}, MODE_KEY_METATABLE),
+		_consumers = setmetatable({}, MODE_KEY_METATABLE)
 	}
 
 	if parent and parent._status == Promise.Status.Started then
@@ -631,7 +632,7 @@ function Promise.each(list, predicate)
 							"The Promise that was part of the array at index %d passed into Promise.each was already cancelled when Promise.each began.\n\nThat Promise was created at:\n\n%s",
 							index,
 							value._source
-						),
+						)
 					}))
 				elseif value:getStatus() == Promise.Status.Rejected then
 					cancel()
@@ -745,7 +746,7 @@ do
 			local node = {
 				resolve = resolve,
 				startTime = startTime,
-				endTime = endTime,
+				endTime = endTime
 			}
 
 			if connection == nil then -- first is nil when connection is nil
@@ -836,10 +837,10 @@ function Promise.prototype:timeout(seconds, rejectionValue)
 					"Timeout of %d seconds exceeded.\n:timeout() called at:\n\n%s",
 					seconds,
 					traceback
-				),
+				)
 			}) or rejectionValue)
 		end),
-		self,
+		self
 	})
 end
 
@@ -886,7 +887,7 @@ function Promise.prototype:_andThen(traceback, successHandler, failureHandler)
 			reject(Error.new({
 				error = "Promise is cancelled",
 				kind = Error.Kind.AlreadyCancelled,
-				context = "Promise created at\n\n" .. traceback,
+				context = "Promise created at\n\n" .. traceback
 			}))
 		end
 	end, self)
@@ -1203,7 +1204,7 @@ function Promise.prototype:_resolve(...)
 				maybeRuntimeError = Error.new({
 					error = chainedPromise._error,
 					kind = Error.Kind.ExecutionError,
-					context = "[No stack trace available as this Promise originated from an older version of the Promise library (< v2)]",
+					context = "[No stack trace available as this Promise originated from an older version of the Promise library (< v2)]"
 				})
 			end
 
@@ -1214,7 +1215,7 @@ function Promise.prototype:_resolve(...)
 					context = string.format(
 						"The Promise at:\n\n%s\n...Rejected because it was chained to the following Promise, which encountered an error:\n",
 						self._source
-					),
+					)
 				}))
 			end
 
@@ -1326,7 +1327,7 @@ function Promise.prototype:now(rejectionValue)
 		return Promise.reject(rejectionValue == nil and Error.new({
 			kind = Error.Kind.NotResolvedInTime,
 			error = "This Promise was not resolved in time for :now()",
-			context = ":now() was called at:\n\n" .. traceback,
+			context = ":now() was called at:\n\n" .. traceback
 		}) or rejectionValue)
 	end
 end
@@ -1397,4 +1398,3 @@ function Promise.fromEvent(event, predicate)
 end
 
 return Promise
-

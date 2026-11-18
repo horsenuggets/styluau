@@ -1,5 +1,5 @@
 #[cfg(all(feature = "luau", any(feature = "lua52", feature = "lua53")))]
-use stylua_lib::{format_code, Config, OutputVerification};
+use styluau_lib::{format_code, Config, OutputVerification};
 
 #[test]
 #[cfg(all(feature = "luau", feature = "lua53"))]

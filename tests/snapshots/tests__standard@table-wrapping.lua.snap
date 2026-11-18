@@ -1,11 +1,11 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-wrapping.lua
 ---
 local foo = {
 	{ "foobarbazfoobarbaz", "foobarbazfoobarbaz" },
 	{ "foobarbazfoobarbaz", "foobarbazfoobarbaz" },
 	{ "foobarbazfoobarbaz", "foobarbazfoobarbaz" },
-	{ "foobarbazfoobarbaz", "foobarbazfoobarbaz" },
+	{ "foobarbazfoobarbaz", "foobarbazfoobarbaz" }
 }
-

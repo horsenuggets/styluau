@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: "format_code(&contents,\n        Config::default().with_collapse_simple_statement(CollapseSimpleStatement::Always),\n        None, OutputVerification::None).unwrap()"
+expression: "format_code(&contents, Config\n{\n    collapse_simple_statement: CollapseSimpleStatement::Always,\n    ..Config::default()\n}, None, OutputVerification::None).unwrap()"
+input_file: tests/inputs-collapse-single-statement/over-column-width-4.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/704
 vim.api.nvim_create_user_command(
@@ -8,7 +9,6 @@ vim.api.nvim_create_user_command(
 	function(options) require("greeeeeeeeeeeeeeeeeeeeep").by_fixed(options.args) end,
 	{
 		nargs = "+",
-		complete = "file",
+		complete = "file"
 	}
 )
-

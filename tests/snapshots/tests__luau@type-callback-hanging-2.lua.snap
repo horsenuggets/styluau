@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-callback-hanging-2.lua
 ---
 export type XYZ = {
 	onSubmitTigerFoot: (
@@ -10,6 +11,5 @@ export type XYZ = {
 		number?,
 		-- Added in v96.9 to support Star Refresh
 		boolean?
-	) -> (),
+	) -> ()
 }
-

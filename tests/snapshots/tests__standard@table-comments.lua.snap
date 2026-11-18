@@ -1,28 +1,29 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-comments.lua
 ---
 local x = {
 	"foo", -- comment
 	"bar", -- test
-	"baz", -- test
+	"baz" -- test
 }
 
 local foo = {
 	MinSize = call(0, 0),
-	MaxSize = call(math.huge, 500), -- TODO: Set this up
+	MaxSize = call(math.huge, 500) -- TODO: Set this up
 }
 
 local x = { -- comment
 	hello = "world",
-	foo = "bar",
+	foo = "bar"
 }
 
 local foo = { -- bar
 }
 
 local bar = {
-	baz, -- bar
+	baz -- bar
 }
 
 local baz = {
@@ -30,12 +31,11 @@ local baz = {
 }
 
 local foobar = {
-	"string",
+	"string"
 } -- trailing comment
 
 local tbl = Roact.createElement({
 	-- comment
-	a = test,
+	a = test
 	-- comment
 })
-

@@ -18,29 +18,52 @@ pub enum FormatNode {
     Normal,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Context {
     /// The configuration passed to the formatter
-    config: Config,
+    config: std::sync::Arc<Config>,
     /// An optional range of values to format within the file.
     range: Option<FormatRange>,
     /// Whether the formatting has currently been disabled. This should occur when we see the relevant comment.
     formatting_disabled: bool,
+    fusion_stack: Vec<bool>,
+    fusion_calls: std::sync::Arc<std::collections::HashSet<usize>>,
+    excluded_fusion_names: std::collections::HashSet<String>,
 }
 
 impl Context {
     /// Creates a new Context, with the given configuration
     pub fn new(config: Config, range: Option<FormatRange>) -> Self {
         Self {
-            config,
+            config: std::sync::Arc::new(config),
             range,
             formatting_disabled: false,
+            fusion_stack: Vec::new(),
+            fusion_calls: std::sync::Arc::new(std::collections::HashSet::new()),
+            excluded_fusion_names: std::collections::HashSet::new(),
         }
     }
 
+    pub fn with_fusion_calls(mut self, calls: std::collections::HashSet<usize>) -> Self {
+        self.fusion_calls = std::sync::Arc::new(calls);
+        self
+    }
+
+    pub fn is_fusion_receiver(&self, node: &impl Node, name: &str) -> bool {
+        !self.excluded_fusion_names.contains(name)
+            && (self
+                .config
+                .fusion_scope_names
+                .iter()
+                .any(|candidate| candidate == name)
+                || node
+                    .start_position()
+                    .is_some_and(|position| self.fusion_calls.contains(&position.bytes())))
+    }
+
     /// Get the configuration for this context
-    pub fn config(&self) -> Config {
-        self.config
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     /// Determines whether we need to toggle whether formatting is enabled or disabled.
@@ -67,17 +90,67 @@ impl Context {
 
         // Work through all the lines and update the state as necessary
         for line in comment_lines {
-            if line == "stylua: ignore start" {
+            if matches!(line, "styluau: ignore start" | "stylua: ignore start") {
                 formatting_disabled = true;
-            } else if line == "stylua: ignore end" {
+            } else if matches!(line, "styluau: ignore end" | "stylua: ignore end") {
                 formatting_disabled = false;
             }
         }
 
         Self {
             formatting_disabled,
-            ..*self
+            ..self.clone()
         }
+    }
+
+    /// Applies Fusion directives and returns the context for this node.
+    pub fn apply_fusion_directives(&mut self, node: &impl Node) -> Self {
+        let mut next_fusion = None;
+        for trivia in node.surrounding_trivia().0 {
+            let comment = match trivia.token_type() {
+                TokenType::SingleLineComment { comment }
+                | TokenType::MultiLineComment { comment, .. } => comment,
+                _ => continue,
+            };
+            for line in comment.lines().map(str::trim) {
+                let Some(directive) = line.strip_prefix("styluau: fusion ") else {
+                    continue;
+                };
+                match directive {
+                    "on" => next_fusion = Some(true),
+                    "off" => next_fusion = Some(false),
+                    "on start" | "off start" => {
+                        self.fusion_stack.push(self.config.fusion);
+                        std::sync::Arc::make_mut(&mut self.config).fusion = directive == "on start";
+                    }
+                    "end" => {
+                        if let Some(previous) = self.fusion_stack.pop() {
+                            std::sync::Arc::make_mut(&mut self.config).fusion = previous;
+                        }
+                    }
+                    _ => {
+                        if let Some(name) = directive.strip_prefix("scope ") {
+                            self.excluded_fusion_names.remove(name);
+                            let names =
+                                &mut std::sync::Arc::make_mut(&mut self.config).fusion_scope_names;
+                            if !names.iter().any(|existing| existing == name) {
+                                names.push(name.to_owned());
+                            }
+                        } else if let Some(name) = directive.strip_prefix("not-scope ") {
+                            self.excluded_fusion_names.insert(name.to_owned());
+                            std::sync::Arc::make_mut(&mut self.config)
+                                .fusion_scope_names
+                                .retain(|existing| existing != name);
+                        }
+                    }
+                }
+            }
+        }
+        let mut node_context = self.clone();
+        if let Some(fusion) = next_fusion {
+            std::sync::Arc::make_mut(&mut node_context.config).fusion = fusion;
+        }
+        node_context
     }
 
     /// Checks whether we should format the given node.
@@ -103,7 +176,7 @@ impl Context {
             .map(|line| line.trim());
 
             for line in comment_lines {
-                if line == "stylua: ignore" {
+                if matches!(line, "styluau: ignore" | "stylua: ignore") {
                     return FormatNode::Skip;
                 }
             }

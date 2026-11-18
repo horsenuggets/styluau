@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/function-call-3.lua
 ---
 setmetatable({
 	_words = words,
@@ -8,21 +9,20 @@ setmetatable({
 	_evenmorewords = words,
 	_words = words,
 	_morewords = words,
-	_evenmorewords = words,
+	_evenmorewords = words
 }, Class)
 
 foo(
 	{
-		foo = bar,
+		foo = bar
 	},
 	baz,
 	{
-		bar = baz,
+		bar = baz
 	}
 )
 
 Roact.createElement("Frame", {
 	foo = bar,
-	bar = baz,
+	bar = baz
 }, self.props[Roact.Children])
-

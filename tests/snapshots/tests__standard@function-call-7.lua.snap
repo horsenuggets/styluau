@@ -1,11 +1,11 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/function-call-7.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/298
 do
 	return Roact.createElement(StyleContext.Provider, {
-		value = styleObject,
+		value = styleObject
 	}, Roact.oneChild(self.props[Roact.Children]))
 end
-

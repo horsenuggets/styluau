@@ -1,4 +1,4 @@
-use stylua_lib::{format_code, Config, OutputVerification, QuoteStyle};
+use styluau_lib::{format_code, Config, OutputVerification, QuoteStyle};
 
 fn format(input: &str, quote_style: QuoteStyle) -> String {
     format_code(

@@ -1,10 +1,10 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/table-trailing-comma-comments.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/547
 local too = {
 	x, -- string
-	y, -- string
+	y -- string
 }
-

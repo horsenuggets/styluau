@@ -1,5 +1,5 @@
 /**
- * Smoke tests for StyLua WASM module
+ * Smoke tests for StyLuau WASM module
  * These tests verify that the WASM bindings work correctly after build
  */
 
@@ -7,9 +7,9 @@ import assert from "node:assert";
 import { describe, it } from "node:test";
 
 // Import the Node.js ESM version
-import * as stylua from "../stylua_lib_node.mjs";
+import * as stylua from "../styluau_lib_node.mjs";
 
-describe("StyLua WASM Smoke Tests (ESM)", () => {
+describe("StyLuau WASM Smoke Tests (ESM)", () => {
   describe("Module exports", () => {
     it("should export formatCode function", () => {
       assert.strictEqual(typeof stylua.formatCode, "function");

@@ -7,8 +7,8 @@ import {
 } from "vscode";
 import fetch, { Headers } from "node-fetch";
 
-const RELEASES_URL =
-  "https://api.github.com/repos/JohnnyMorganz/StyLua/releases";
+declare const STYLUAU_RELEASES_URL: string;
+const RELEASES_URL = STYLUAU_RELEASES_URL;
 const RELEASES_URL_LATEST = RELEASES_URL + "/latest";
 const SCOPES: string[] = [];
 
@@ -158,10 +158,10 @@ export class GitHub implements Disposable {
       throw new Error("No release version specified");
     }
 
-    version = version.startsWith("v") ? version : "v" + version;
+    version = version.replace(/^v/, "");
     const releases = await this.getAllReleases();
     for (const release of releases) {
-      if (release.tagName.startsWith(version)) {
+      if (release.tagName.replace(/^v/, "") === version) {
         return release;
       }
     }

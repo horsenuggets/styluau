@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/return-comments-1.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/504
 local x = {
@@ -13,6 +14,5 @@ local x = {
 			("fragment %s%s "):format(tostring(name), tostring(wrap("(", join(variableDefinitions, ", "), ")")))
 				.. ("on %s %s"):format(tostring(typeCondition), tostring(wrap("", join(directives, " "), " ")))
 				.. tostring(selectionSet)
-	end,
+	end
 }
-

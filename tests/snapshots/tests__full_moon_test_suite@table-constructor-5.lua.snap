@@ -1,9 +1,9 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs-full_moon/table-constructor-5.lua
 ---
 local x = {
 	[call()] = 1,
-	2,
+	2
 }
-

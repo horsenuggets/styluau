@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/hang-call-chains.lua
 ---
 Promise.new()
 	:andThen(callThis)
@@ -12,7 +13,7 @@ Promise.new()
 Promise.new()
 	:andThen(callThis)
 	:andThen({
-		true,
+		true
 	})
 	:andThen()
 
@@ -24,12 +25,12 @@ this.is.a.large.start
 	:andThen()
 
 local f = this:andThen(callThis):andThen({
-	true,
+	true
 }).X.Y.Z
 
 this:andThen(callThis)
 	:andThen({
-		true,
+		true
 	}).X.Y.Z
 	:andThen()
 	:andThen()
@@ -49,6 +50,5 @@ local x = {
 		:andThen(function()
 			print("test")
 		end)
-		:andThen(),
+		:andThen()
 }
-

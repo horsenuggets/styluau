@@ -1,6 +1,7 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs/return-multiple-tables.lua
 ---
 -- https://github.com/JohnnyMorganz/StyLua/issues/302
 return {
@@ -11,7 +12,7 @@ return {
 	foo = bar,
 	foo = bar,
 	foo = bar,
-	foo = bar,
+	foo = bar
 }, {
 	bar = baz,
 	bar = baz,
@@ -20,6 +21,5 @@ return {
 	bar = baz,
 	bar = baz,
 	bar = baz,
-	bar = baz,
+	bar = baz
 }
-

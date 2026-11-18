@@ -1,10 +1,9 @@
 [package]
-name = "stylua"
+name = "styluau"
 version = "2.6.0"
 authors = ["JohnnyMorganz <johnnymorganz@outlook.com>"]
-description = "A code formatter for Lua"
+description = "A code formatter for Luau"
 license = "MPL-2.0"
-repository = "https://github.com/johnnymorganz/stylua"
 readme = "README.md"
 categories = ["command-line-utilities", "development-tools"]
 keywords = ["cli", "utility", "lua", "lua51", "formatter"]
@@ -12,13 +11,13 @@ edition = "2018"
 exclude = ["stylua-vscode/**", "tests/**"]
 
 [lib]
-name = "stylua_lib"
+name = "styluau_lib"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 bench = false
 
 [[bin]]
-name = "stylua"
+name = "styluau"
 path = "src/cli/main.rs"
 bench = false
 

@@ -1,8 +1,8 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Luau)"
+input_file: tests/inputs-luau/type-tables-comments.lua
 ---
 export type Foo = {
-	test: boolean, -- true
+	test: boolean -- true
 }
-

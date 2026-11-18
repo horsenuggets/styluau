@@ -1,19 +1,20 @@
 ---
 source: tests/tests.rs
-expression: format(&contents)
+expression: "format(&contents, LuaVersion::Lua51)"
+input_file: tests/inputs-ignore/ignore-table-field.lua
 ---
 local foo = {
 	-- stylua: ignore
 	x   =    2,
 	y = 3,
-	z = " he ",
+	z = " he "
 }
 
 local bar = {
 	x = 2,
 	-- stylua: ignore
 	y  =  3,
-	z = " he ",
+	z = " he "
 }
 
 local baz = {
@@ -22,4 +23,3 @@ local baz = {
 	-- stylua: ignore
 	z        =   " he "  ,
 }
-

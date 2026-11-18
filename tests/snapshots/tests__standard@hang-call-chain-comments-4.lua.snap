@@ -8,14 +8,14 @@ input_file: tests/inputs/hang-call-chain-comments-4.lua
 x = a
 	.b -- comment
 	({
-		y,
+		y
 	})
 
 console.dialog = iup.dialog({
 	iup
 		.hbox -- use it to inherit margins
 		({
-			console.prompt,
+			console.prompt
 		}),
-	title = "Command:",
+	title = "Command:"
 })
