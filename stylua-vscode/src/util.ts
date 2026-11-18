@@ -3,13 +3,17 @@
 import * as vscode from "vscode";
 import * as os from "os";
 
+export const parseStyluauVersion = (output: string): string | undefined => {
+  return /^styluau\s+(\S+)$/i.exec(output.trim())?.[1];
+};
+
 export const getDownloadOutputFilename = () => {
   switch (os.platform()) {
     case "win32":
-      return "stylua.exe";
+      return "styluau.exe";
     case "linux":
     case "darwin":
-      return "stylua";
+      return "styluau";
     default:
       throw new Error("platform not supported");
   }
@@ -47,7 +51,7 @@ export const getAssetFilenamePatternForPlatform = (
   }
 
   return new RegExp(
-    "stylua(-[\\dw\\-\\.]+)?-" + platformPattern + "(-" + archPattern + ")?.zip"
+    "^styluau(-[\\w\\-.]+)?-" + platformPattern + "(-" + archPattern + ")?\\.zip$"
   );
 };
 
@@ -56,10 +60,10 @@ export const getAssetFilenamePattern = () => {
 };
 
 export const getDesiredVersion = (): string => {
-  const config = vscode.workspace.getConfiguration("stylua");
+  const config = vscode.workspace.getConfiguration("styluau");
   const targetVersion = config.get<string>("targetReleaseVersion", "").trim();
   if (targetVersion.length === 0) {
-    // TODO: Backwards compatibility to support deprecated setting `stylua.releaseVersion`
+    // TODO: Backwards compatibility to support deprecated setting `styluau.releaseVersion`
     return config.get<string>("releaseVersion", "latest");
   }
   return targetVersion;

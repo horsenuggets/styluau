@@ -13,6 +13,17 @@ jobs:
       - run: npm ci
         working-directory: stylua-vscode
 
+      - name: Set extension publisher
+        working-directory: stylua-vscode
+        env:
+          EXTENSION_PUBLISHER: ${{ vars.EXTENSION_PUBLISHER }}
+        run: |
+          if [ -z "$EXTENSION_PUBLISHER" ]; then
+            printf '%s\n' 'The EXTENSION_PUBLISHER repository variable is required.' >&2
+            exit 1
+          fi
+          npm pkg set "publisher=$EXTENSION_PUBLISHER"
+
       - name: Publish VSCode Extension
         working-directory: stylua-vscode
         run: npx vsce publish --pat ${{ secrets.MARKETPLACE_TOKEN }}

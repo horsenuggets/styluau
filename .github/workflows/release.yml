@@ -28,25 +28,25 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact-name: stylua-windows-x86_64
+            artifact-name: styluau-windows-x86_64
             cargo-target: x86_64-pc-windows-msvc
           - os: ubuntu-22.04
-            artifact-name: stylua-linux-x86_64
+            artifact-name: styluau-linux-x86_64
             cargo-target: x86_64-unknown-linux-gnu
           - os: ubuntu-22.04
-            artifact-name: stylua-linux-x86_64-musl
+            artifact-name: styluau-linux-x86_64-musl
             cargo-target: x86_64-unknown-linux-musl
           - os: ubuntu-22.04-arm
-            artifact-name: stylua-linux-aarch64
+            artifact-name: styluau-linux-aarch64
             cargo-target: aarch64-unknown-linux-gnu
           - os: ubuntu-22.04-arm
-            artifact-name: stylua-linux-aarch64-musl
+            artifact-name: styluau-linux-aarch64-musl
             cargo-target: aarch64-unknown-linux-musl
           - os: macos-latest
-            artifact-name: stylua-macos-x86_64
+            artifact-name: styluau-macos-x86_64
             cargo-target: x86_64-apple-darwin
           - os: macos-latest
-            artifact-name: stylua-macos-aarch64
+            artifact-name: styluau-macos-aarch64
             cargo-target: aarch64-apple-darwin
 
     name: Build (${{ matrix.artifact-name }})
@@ -70,11 +70,11 @@ jobs:
           mkdir -p staging
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp "output/${{ matrix.cargo-target }}/release/stylua.exe" staging/
+            cp "output/${{ matrix.cargo-target }}/release/styluau.exe" staging/
             cd staging
             7z a ../release.zip *
           else
-            cp "output/${{ matrix.cargo-target }}/release/stylua" staging/
+            cp "output/${{ matrix.cargo-target }}/release/styluau" staging/
             cd staging
             zip ../release.zip *
           fi
@@ -160,31 +160,31 @@ jobs:
       - name: Download Linux x64 binary
         uses: actions/download-artifact@v4
         with:
-          name: stylua-linux-x86_64
+          name: styluau-linux-x86_64
           path: /tmp/artifacts/linux-x64
 
       - name: Download Linux arm64 binary
         uses: actions/download-artifact@v4
         with:
-          name: stylua-linux-aarch64
+          name: styluau-linux-aarch64
           path: /tmp/artifacts/linux-arm64
 
       - name: Download macOS x64 binary
         uses: actions/download-artifact@v4
         with:
-          name: stylua-macos-x86_64
+          name: styluau-macos-x86_64
           path: /tmp/artifacts/darwin-x64
 
       - name: Download macOS arm64 binary
         uses: actions/download-artifact@v4
         with:
-          name: stylua-macos-aarch64
+          name: styluau-macos-aarch64
           path: /tmp/artifacts/darwin-arm64
 
       - name: Download Windows x64 binary
         uses: actions/download-artifact@v4
         with:
-          name: stylua-windows-x86_64
+          name: styluau-windows-x86_64
           path: /tmp/artifacts/win32-x64
 
       - name: Extract binaries into platform packages
@@ -221,7 +221,7 @@ jobs:
         env:
           DOCKER_METADATA_PR_HEAD_SHA: "true"
         with:
-          images: johnnymorganz/stylua
+          images: ${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
             type=sha

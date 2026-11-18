@@ -59,8 +59,8 @@ formattingType: Literal["diffAfterMainFormat", "diffMainVsChangeFormat"] = sys.a
 
 print(f"RUNNING MODE: {formattingType}", file=sys.stderr)
 
-os.chmod("./stylua-main", 0o700)
-os.chmod("./stylua-latest", 0o700)
+os.chmod("./styluau-main", 0o700)
+os.chmod("./styluau-latest", 0o700)
 os.system('git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"')
 os.system('git config --global user.name "github-actions[bot]"')
 
@@ -99,7 +99,7 @@ for repo, data in REPOS.items():
     print(f"Repo cloned and tool prepared", file=sys.stderr)
 
     # Run the base tool on the repository
-    runMainProcess = executeTool("../stylua-main", data["command"])
+    runMainProcess = executeTool("../styluau-main", data["command"])
     runMainStderr = runMainProcess.communicate()[1].decode()
     if runMainStderr and runMainStderr.strip() != "":
         print(f"**Error when running main on `{repo}`**:")
@@ -136,7 +136,7 @@ for repo, data in REPOS.items():
             continue
 
     # Run the latest tool on the repository
-    runLatestProcess = executeTool("../stylua-latest", data["command"])
+    runLatestProcess = executeTool("../styluau-latest", data["command"])
     runLatestStderr = runLatestProcess.communicate()[1].decode()
     if runLatestStderr and runLatestStderr.strip() != "":
         print(f"**Error when running latest on `{repo}`**:")

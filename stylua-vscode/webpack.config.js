@@ -3,6 +3,15 @@
 'use strict';
 
 const path = require('path');
+const { execFileSync } = require('child_process');
+const webpack = require('webpack');
+
+const origin = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
+const match = origin.match(/^(?:https:\/\/github\.com\/|git@github\.com:)([^/]+)\/([^/]+?)(?:\.git)?$/i);
+if (!match) {
+  throw new Error('The Git origin must point to the GitHub repository containing StyLuau.');
+}
+const releasesUrl = `https://api.github.com/repos/${match[1]}/${match[2]}/releases`;
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -12,6 +21,7 @@ const extensionConfig = {
   target: 'node', // vscode extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
 	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
 
+  plugins: [new webpack.DefinePlugin({ STYLUAU_RELEASES_URL: JSON.stringify(releasesUrl) })],
   entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
     // the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/

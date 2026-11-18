@@ -1,7 +1,7 @@
 {
-  "name": "@johnnymorganz/stylua-bin-linux-x64",
+  "name": "styluau-bin-linux-x64",
   "version": "2.6.0",
-  "description": "StyLua binary for Linux x64",
+  "description": "StyLuau binary for Linux x64",
   "os": [
     "linux"
   ],
@@ -9,13 +9,9 @@
     "x64"
   ],
   "files": [
-    "stylua"
+    "styluau"
   ],
   "license": "MPL-2.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/JohnnyMorganz/StyLua.git"
-  },
   "preferUnplugged": true,
   "publishConfig": {
     "access": "public",

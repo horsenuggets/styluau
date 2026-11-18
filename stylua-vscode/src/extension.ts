@@ -9,7 +9,7 @@ const documentSelector = ["lua", "luau"];
 
 /**
  * Convert a Position within a Document to a byte offset.
- * Required as `document.offsetAt(position)` returns a char offset, causing inconsistencies when sending over to StyLua
+ * Required as `document.offsetAt(position)` returns a char offset, causing inconsistencies when sending over to StyLuau
  * @param document The document to retrieve the byte offset in
  * @param position The position to retrieve the byte offset for
  */
@@ -27,35 +27,35 @@ const byteOffset = (
 
 class StatusInfo implements vscode.Disposable {
   statusItem: vscode.LanguageStatusItem;
-  styluaInfo: StyluaInfo | undefined;
+  styluauInfo: StyluaInfo | undefined;
 
   constructor() {
     this.statusItem = vscode.languages.createLanguageStatusItem(
-      "stylua",
+      "styluau",
       documentSelector
     );
-    this.statusItem.name = "StyLua";
+    this.statusItem.name = "StyLuau";
     this.statusItem.command = {
       title: "Show Output",
-      command: "stylua.showOutputChannel",
+      command: "styluau.showOutputChannel",
     };
     this.updateReady();
   }
 
-  setStyluaInfo(styluaInfo: StyluaInfo | undefined) {
-    this.styluaInfo = styluaInfo;
+  setStyluaInfo(styluauInfo: StyluaInfo | undefined) {
+    this.styluauInfo = styluauInfo;
     this.updateReady();
   }
 
   getStyluaText() {
-    if (this.styluaInfo && this.styluaInfo.version) {
-      if (this.styluaInfo.resolveMode === ResolveMode.bundled) {
-        return `StyLua (bundled ${this.styluaInfo.version})`;
+    if (this.styluauInfo && this.styluauInfo.version) {
+      if (this.styluauInfo.resolveMode === ResolveMode.bundled) {
+        return `StyLuau (bundled ${this.styluauInfo.version})`;
       } else {
-        return `StyLua (${this.styluaInfo.version})`;
+        return `StyLuau (${this.styluauInfo.version})`;
       }
     }
-    return "StyLua";
+    return "StyLuau";
   }
 
   updateReady() {
@@ -82,12 +82,12 @@ class StatusInfo implements vscode.Disposable {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-  console.log("stylua activated");
+  console.log("styluau activated");
 
-  const outputChannel = vscode.window.createOutputChannel("StyLua", {
+  const outputChannel = vscode.window.createOutputChannel("StyLuau", {
     log: true,
   });
-  outputChannel.info("StyLua activated");
+  outputChannel.info("StyLuau activated");
 
   const statusItem = new StatusInfo();
   const github = new GitHub();
@@ -102,35 +102,35 @@ export async function activate(context: vscode.ExtensionContext) {
   let cwdForVersionDetection =
     vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
-  let styluaBinaryPath = await downloader.ensureStyluaExists(
+  let styluauBinaryPath = await downloader.ensureStyluaExists(
     cwdForVersionDetection
   );
-  statusItem.setStyluaInfo(styluaBinaryPath);
+  statusItem.setStyluaInfo(styluauBinaryPath);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("stylua.reinstall", async () => {
-      await downloader.downloadStyLuaVisual(getDesiredVersion());
-      styluaBinaryPath = await downloader.ensureStyluaExists(
+    vscode.commands.registerCommand("styluau.reinstall", async () => {
+      await downloader.downloadStyLuauVisual(getDesiredVersion());
+      styluauBinaryPath = await downloader.ensureStyluaExists(
         cwdForVersionDetection
       );
-      statusItem.setStyluaInfo(styluaBinaryPath);
+      statusItem.setStyluaInfo(styluauBinaryPath);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("stylua.authenticate", async () => {
+    vscode.commands.registerCommand("styluau.authenticate", async () => {
       await github.authenticate();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("stylua.showOutputChannel", async () => {
+    vscode.commands.registerCommand("styluau.showOutputChannel", async () => {
       outputChannel.show();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("stylua.selectVersion", async () => {
+    vscode.commands.registerCommand("styluau.selectVersion", async () => {
       const versions = (await github.getAllReleases()).sort((a, b) =>
         semver.rcompare(a.tagName, b.tagName)
       );
@@ -150,7 +150,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }
           }),
         {
-          placeHolder: "Select the version of StyLua to install",
+          placeHolder: "Select the version of StyLuau to install",
         }
       );
 
@@ -158,9 +158,9 @@ export async function activate(context: vscode.ExtensionContext) {
         const updateConfigValue = selectedVersion.label.includes("latest")
           ? "latest"
           : selectedVersion.label;
-        await downloader.downloadStyLuaVisual(updateConfigValue);
+        await downloader.downloadStyLuauVisual(updateConfigValue);
         vscode.workspace
-          .getConfiguration("stylua")
+          .getConfiguration("styluau")
           .update(
             "targetReleaseVersion",
             updateConfigValue,
@@ -172,10 +172,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "stylua.installUpdate",
+      "styluau.installUpdate",
       async (release: GitHubRelease) => {
         const result = await vscode.window.showInformationMessage(
-          `Are you sure you want to update StyLua to ${release.tagName}?`,
+          `Are you sure you want to update StyLuau to ${release.tagName}?`,
           { modal: true },
           "Update",
           "Release Notes",
@@ -184,9 +184,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
         switch (result) {
           case "Update":
-            await downloader.downloadStyLuaVisual(release.tagName);
+            await downloader.downloadStyLuauVisual(release.tagName);
             vscode.workspace
-              .getConfiguration("stylua")
+              .getConfiguration("styluau")
               .update("targetReleaseVersion", "latest");
             break;
           case "Release Notes":
@@ -194,7 +194,7 @@ export async function activate(context: vscode.ExtensionContext) {
             break;
           case "Do not show again":
             vscode.workspace
-              .getConfiguration("stylua")
+              .getConfiguration("styluau")
               .update("disableVersionCheck", true);
             break;
         }
@@ -204,11 +204,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (change) => {
-      if (change.affectsConfiguration("stylua")) {
-        styluaBinaryPath = await downloader.ensureStyluaExists(
+      if (change.affectsConfiguration("styluau")) {
+        styluauBinaryPath = await downloader.ensureStyluaExists(
           cwdForVersionDetection
         );
-        statusItem.setStyluaInfo(styluaBinaryPath);
+        statusItem.setStyluaInfo(styluauBinaryPath);
       }
     })
   );
@@ -222,15 +222,15 @@ export async function activate(context: vscode.ExtensionContext) {
         _options: vscode.FormattingOptions,
         _token: vscode.CancellationToken
       ) {
-        if (!styluaBinaryPath) {
+        if (!styluauBinaryPath) {
           vscode.window
             .showErrorMessage(
-              "StyLua not found. Could not format file",
+              "StyLuau not found. Could not format file",
               "Install"
             )
             .then((option) => {
               if (option === "Install") {
-                vscode.commands.executeCommand("stylua.reinstall");
+                vscode.commands.executeCommand("styluau.reinstall");
               }
             });
           return [];
@@ -246,7 +246,7 @@ export async function activate(context: vscode.ExtensionContext) {
         try {
           const formattedText = await formatCode(
             outputChannel,
-            styluaBinaryPath.path,
+            styluauBinaryPath.path,
             text,
             document.uri.scheme === "file" ? document.uri.fsPath : undefined,
             cwd,

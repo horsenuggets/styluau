@@ -14,13 +14,10 @@ jobs:
         include:
           - os: ubuntu-latest
             platform-dir: linux-x64
-            gh-artifact: stylua-linux-x86_64
           - os: macos-latest
             platform-dir: darwin-arm64
-            gh-artifact: stylua-macos-aarch64
           - os: windows-latest
             platform-dir: win32-x64
-            gh-artifact: stylua-windows-x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -30,19 +27,15 @@ jobs:
         with:
           node-version: 22.x
 
-      - name: Get release version
-        id: version
-        shell: bash
-        run: echo "tag=v$(node -p "require('./stylua-npm-bin/package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Download and extract release binary
+      - name: Build package binary
         shell: bash
         run: |
-          curl -fsSL \
-            "https://github.com/johnnymorganz/stylua/releases/download/${{ steps.version.outputs.tag }}/${{ matrix.gh-artifact }}.zip" \
-            -o release.zip
-          unzip release.zip -d "stylua-npm-bin/platforms/${{ matrix.platform-dir }}/"
-          rm release.zip
+          cargo build --locked --release --all-features
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/release/styluau.exe "stylua-npm-bin/platforms/${{ matrix.platform-dir }}/"
+          else
+            cp target/release/styluau "stylua-npm-bin/platforms/${{ matrix.platform-dir }}/"
+          fi
 
       - name: Pack platform and main packages
         shell: bash
@@ -64,4 +57,4 @@ jobs:
 
       - name: Test via npx
         working-directory: ${{ github.workspace }}/test-install
-        run: npx stylua --version
+        run: npx styluau --version
