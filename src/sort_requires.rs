@@ -138,7 +138,9 @@ fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
             // Either, the parts list is empty, the last part was a BlockPartition::Other,
             // the last part group was a different kind, or,
             // there is > 1 line in between the previous require and this one
+            let current_has_directive = has_fusion_directive(&stmt.0);
             let create_new_block = previous_has_directive
+                || current_has_directive
                 || match parts.last() {
                     None => true,
                     Some(BlockPartition::Other(_)) => true,
@@ -171,7 +173,7 @@ fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
                 _ => unreachable!(),
             };
 
-            previous_has_directive = has_fusion_directive(&stmt.0);
+            previous_has_directive = current_has_directive;
             continue;
         }
 

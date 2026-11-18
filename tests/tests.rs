@@ -302,6 +302,46 @@ fn test_fusion_directives_survive_require_sorting() {
 
 #[test]
 #[cfg(feature = "luau")]
+fn test_fusion_regions_survive_inline_require_directives() {
+    use styluau_lib::CallParenType;
+
+    let config = Config {
+        syntax: LuaVersion::Luau,
+        call_parentheses: CallParenType::Always,
+        fusion: true,
+        sort_requires: SortRequiresConfig { enabled: true },
+        ..Config::default()
+    };
+    let input = "local z = require(scope:New(\"Frame\")({}))\n--[[styluau: fusion off start]] local a = require(scope:New(\"Frame\")({}))\n-- styluau: fusion end\nlocal b = require(scope:New(\"Frame\")({}))\n";
+    let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+    assert!(
+        output.contains("local z = require(scope:New \"Frame\" {})"),
+        "{}",
+        output
+    );
+    assert!(
+        output.contains("local a = require(scope:New(\"Frame\")({}))"),
+        "{}",
+        output
+    );
+    assert!(
+        output.contains("local b = require(scope:New \"Frame\" {})"),
+        "{}",
+        output
+    );
+    assert!(
+        output.find("local z").unwrap() < output.find("local a").unwrap(),
+        "{}",
+        output
+    );
+    assert_eq!(
+        output,
+        format_code(&output, config, None, OutputVerification::Full).unwrap()
+    );
+}
+
+#[test]
+#[cfg(feature = "luau")]
 fn test_fusion_comment_overrides() {
     use styluau_lib::CallParenType;
     let input = "-- styluau: fusion on\nlocal a = scope:New(\"Frame\")({})\nlocal b = scope:New(\"Frame\")({})\n-- styluau: fusion on start\nlocal c = scope:New(\"Frame\")({})\n-- styluau: fusion off start\nlocal d = scope:New(\"Frame\")({})\n-- styluau: fusion end\n-- styluau: fusion scope custom\nlocal e = custom:New(\"Frame\")({})\n-- styluau: fusion not-scope scope\nlocal f = scope:New(\"Frame\")({})\n-- styluau: fusion end\nlocal g = scope:New(\"Frame\")({})\n";
