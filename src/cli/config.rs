@@ -394,19 +394,29 @@ fn find_toml_file(directory: &Path) -> Option<PathBuf> {
     None
 }
 
-pub fn find_ignore_file_path(mut directory: PathBuf, recursive: bool) -> Option<PathBuf> {
-    debug!("config: looking for ignore file in {}", directory.display());
-    for name in [".styluauignore", ".styluaignore"] {
-        let file_path = directory.join(name);
-        if file_path.is_file() {
-            debug!("config: resolved ignore file at {}", file_path.display());
-            return Some(file_path);
+/// Finds the nearest directory containing ignore files, returning its path along with every
+/// ignore file it contains. Both names are combined so a legacy file is not silently dropped
+/// when a StyLuau file is also present. Later entries take precedence, matching the walker.
+pub fn find_ignore_files(
+    mut directory: PathBuf,
+    recursive: bool,
+) -> Option<(PathBuf, Vec<PathBuf>)> {
+    loop {
+        debug!("config: looking for ignore file in {}", directory.display());
+        let files: Vec<PathBuf> = [".styluaignore", ".styluauignore"]
+            .iter()
+            .map(|name| directory.join(name))
+            .filter(|file_path| file_path.is_file())
+            .collect();
+        if !files.is_empty() {
+            for file_path in &files {
+                debug!("config: resolved ignore file at {}", file_path.display());
+            }
+            return Some((directory, files));
         }
-    }
-    if recursive && directory.pop() {
-        find_ignore_file_path(directory, recursive)
-    } else {
-        None
+        if !recursive || !directory.pop() {
+            return None;
+        }
     }
 }
 
