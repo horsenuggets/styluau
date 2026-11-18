@@ -51,7 +51,11 @@ export const getAssetFilenamePatternForPlatform = (
   }
 
   return new RegExp(
-    "^styluau(-[\\w\\-.]+)?-" + platformPattern + "(-" + archPattern + ")?\\.zip$"
+    "^styluau(-[\\w\\-.]+)?-" +
+      platformPattern +
+      "(-" +
+      archPattern +
+      ")?\\.zip$"
   );
 };
 

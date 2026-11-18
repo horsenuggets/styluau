@@ -36,7 +36,9 @@ export function formatCode(
     }
 
     if (
-      vscode.workspace.getConfiguration("styluau").get("searchParentDirectories")
+      vscode.workspace
+        .getConfiguration("styluau")
+        .get("searchParentDirectories")
     ) {
       args.push("--search-parent-directories");
     }
