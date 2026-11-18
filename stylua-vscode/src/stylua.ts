@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { spawn, exec } from "child_process";
+import { getSetting } from "./util";
 
 export function formatCode(
   outputChannel: vscode.LogOutputChannel,
@@ -27,22 +28,16 @@ export function formatCode(
       args.push(endPos.toString());
     }
 
-    const configPath = vscode.workspace
-      .getConfiguration("styluau")
-      .get<string>("configPath");
-    if (configPath && configPath.trim() !== "") {
+    const configPath = getSetting<string>("configPath", "").trim();
+    if (configPath !== "") {
       args.push("--config-path");
       args.push(configPath);
     }
 
-    if (
-      vscode.workspace
-        .getConfiguration("styluau")
-        .get("searchParentDirectories")
-    ) {
+    if (getSetting<boolean>("searchParentDirectories", false)) {
       args.push("--search-parent-directories");
     }
-    if (vscode.workspace.getConfiguration("styluau").get("verify")) {
+    if (getSetting<boolean>("verify", false)) {
       args.push("--verify");
     }
 

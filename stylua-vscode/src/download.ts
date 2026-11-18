@@ -45,9 +45,7 @@ export class StyluaDownloader implements vscode.Disposable {
 
   public async findStylua(cwd?: string): Promise<StyluaInfo> {
     // 1) If `styluau.styluauPath` has been specified, use that directly
-    const settingPath = vscode.workspace
-      .getConfiguration("styluau")
-      .get<string | null>("styluauPath");
+    const settingPath = util.getSetting<string | null>("styluauPath", null);
     if (settingPath) {
       this.outputChannel.info(
         `StyLuau path explicitly configured: ${settingPath}`
@@ -56,11 +54,7 @@ export class StyluaDownloader implements vscode.Disposable {
     }
 
     // 2) Find a `styluau` binary available on PATH
-    if (
-      vscode.workspace
-        .getConfiguration("styluau")
-        .get<boolean>("searchBinaryInPATH")
-    ) {
+    if (util.getSetting<boolean>("searchBinaryInPATH", false)) {
       this.outputChannel.info("Searching for styluau on PATH");
       const resolvedPath = await which("styluau", { nothrow: true });
       if (resolvedPath) {
@@ -111,9 +105,7 @@ export class StyluaDownloader implements vscode.Disposable {
       }
 
       // Check for latest version
-      if (
-        !vscode.workspace.getConfiguration("styluau").get("disableVersionCheck")
-      ) {
+      if (!util.getSetting<boolean>("disableVersionCheck", false)) {
         try {
           const latestRelease = await this.github.getRelease("latest");
           if (

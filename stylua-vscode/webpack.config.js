@@ -6,12 +6,34 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const webpack = require('webpack');
 
-const origin = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
-const match = origin.match(/^(?:https:\/\/github\.com\/|git@github\.com:)([^/]+)\/([^/]+?)(?:\.git)?$/i);
-if (!match) {
-  throw new Error('The Git origin must point to the GitHub repository containing StyLuau.');
+// Resolve the release endpoint from an explicit build setting, falling back to the checkout's
+// GitHub origin. Builds without either (source archives, unusual remotes) still work; only
+// bundled downloads need the endpoint.
+function resolveReleasesUrl() {
+  const explicit = process.env.STYLUAU_RELEASES_URL;
+  if (explicit && explicit.trim() !== '') {
+    return explicit.trim();
+  }
+
+  let origin;
+  try {
+    origin = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return null;
+  }
+
+  const match = origin.match(
+    /^(?:https?:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([^/]+)\/([^/]+?)(?:\.git)?\/?$/i
+  );
+  return match
+    ? `https://api.github.com/repos/${match[1]}/${match[2]}/releases`
+    : null;
 }
-const releasesUrl = `https://api.github.com/repos/${match[1]}/${match[2]}/releases`;
+
+const releasesUrl = resolveReleasesUrl();
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/

@@ -7,9 +7,20 @@ import {
 } from "vscode";
 import fetch, { Headers } from "node-fetch";
 
-declare const STYLUAU_RELEASES_URL: string;
-const RELEASES_URL = STYLUAU_RELEASES_URL;
-const RELEASES_URL_LATEST = RELEASES_URL + "/latest";
+declare const STYLUAU_RELEASES_URL: string | null;
+
+// The build may not know which repository hosts releases (for example when building from a
+// source archive). Only downloads need the endpoint, so resolve it lazily.
+const releasesUrl = (): string => {
+  const url =
+    typeof STYLUAU_RELEASES_URL === "undefined" ? null : STYLUAU_RELEASES_URL;
+  if (!url) {
+    throw new Error(
+      "This build has no StyLuau release endpoint. Set STYLUAU_RELEASES_URL when building the extension, or configure a local styluau binary."
+    );
+  }
+  return url;
+};
 const SCOPES: string[] = [];
 
 export interface GitHubRelease {
@@ -138,13 +149,16 @@ export class GitHub implements Disposable {
   }
 
   public async getAllReleases(): Promise<GitHubRelease[]> {
-    const json = await fetchJson(RELEASES_URL, this.credential.token);
+    const json = await fetchJson(releasesUrl(), this.credential.token);
     return Array.isArray(json) ? json.map(releaseFromJson) : [];
   }
 
   public async getRelease(version: string): Promise<GitHubRelease> {
     if (version === "latest") {
-      const json = await fetchJson(RELEASES_URL_LATEST, this.credential.token);
+      const json = await fetchJson(
+        releasesUrl() + "/latest",
+        this.credential.token
+      );
       const release = releaseFromJson(json);
       if (!release.tagName) {
         throw new Error(
