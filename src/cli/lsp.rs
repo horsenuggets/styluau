@@ -127,6 +127,7 @@ struct LanguageServer<'a> {
 
 enum FormattingError {
     ConfigError(String),
+    DirectiveError(String),
     StyLuauError,
     NotLuaDocument,
     DocumentNotFound,
@@ -233,10 +234,17 @@ impl LanguageServer<'_> {
             };
         }
 
-        let Ok(formatted_contents) = format_code(contents, config, range, OutputVerification::None)
-        else {
-            return Err(FormattingError::StyLuauError);
-        };
+        let formatted_contents =
+            match format_code(contents, config, range, OutputVerification::None) {
+                Ok(formatted_contents) => formatted_contents,
+                // Directive errors carry the line and reason, so surface them to the editor
+                Err(styluau_lib::Error::FusionDirectiveError(message)) => {
+                    return Err(FormattingError::DirectiveError(format!(
+                        "invalid Fusion directive: {message}"
+                    )))
+                }
+                Err(_) => return Err(FormattingError::StyLuauError),
+            };
 
         let operations = TextDiff::from_chars(contents, &formatted_contents).grouped_ops(0);
 
@@ -268,7 +276,8 @@ impl LanguageServer<'_> {
                             | Err(FormattingError::FileIsIgnored) => {
                                 Response::new_ok(request.id, serde_json::Value::Null)
                             }
-                            Err(FormattingError::ConfigError(message)) => Response::new_err(
+                            Err(FormattingError::ConfigError(message))
+                            | Err(FormattingError::DirectiveError(message)) => Response::new_err(
                                 request.id,
                                 ErrorCode::RequestFailed as i32,
                                 message,
@@ -305,7 +314,8 @@ impl LanguageServer<'_> {
                             | Err(FormattingError::FileIsIgnored) => {
                                 Response::new_ok(request.id, serde_json::Value::Null)
                             }
-                            Err(FormattingError::ConfigError(message)) => Response::new_err(
+                            Err(FormattingError::ConfigError(message))
+                            | Err(FormattingError::DirectiveError(message)) => Response::new_err(
                                 request.id,
                                 ErrorCode::RequestFailed as i32,
                                 message,
@@ -1073,6 +1083,80 @@ mod tests {
                     assert!(error.message.contains("Invalid glob"), "{}", error.message);
                 },
                 |receiver| expect_server_shutdown(receiver, 3)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lsp_reports_fusion_directive_errors() {
+        let contents = "local a = 1\n-- styluau: fusion end\nlocal b = 2";
+        let cwd = construct_tree!({
+            "foo.lua": contents,
+        });
+        let uri = Uri::from_str(cwd.child("foo.lua").to_str().unwrap()).unwrap();
+        lsp_test!(
+            [],
+            [
+                initialize(1, Some(cwd.path())),
+                initialized(),
+                open_text_document(uri.clone(), contents.to_string()),
+                format_document(2, uri.clone(), FormattingOptions::default()),
+                shutdown(3),
+                exit()
+            ],
+            [
+                |receiver| expect_server_initialized(receiver, 1),
+                |receiver: &Receiver<Message>| {
+                    let Message::Response(Response {
+                        error: Some(error), ..
+                    }) = receiver.recv().unwrap()
+                    else {
+                        panic!("Expected a directive error");
+                    };
+                    assert_eq!(error.code, ErrorCode::RequestFailed as i32);
+                    assert!(error.message.contains("unmatched end"), "{}", error.message);
+                },
+                |receiver| expect_server_shutdown(receiver, 3)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lsp_combines_both_ignore_files() {
+        let contents = "local   x    =   1";
+        let cwd = construct_tree!({
+            ".styluauignore": "new.lua",
+            ".styluaignore": "legacy.lua",
+            "legacy.lua": contents,
+            "new.lua": contents,
+        });
+
+        let legacy_uri = Uri::from_str(cwd.child("legacy.lua").to_str().unwrap()).unwrap();
+        let new_uri = Uri::from_str(cwd.child("new.lua").to_str().unwrap()).unwrap();
+
+        lsp_test!(
+            [],
+            [
+                initialize(1, Some(cwd.path())),
+                initialized(),
+                open_text_document(legacy_uri.clone(), contents.to_string()),
+                open_text_document(new_uri.clone(), contents.to_string()),
+                format_document(2, legacy_uri, FormattingOptions::default()),
+                format_document(3, new_uri, FormattingOptions::default()),
+                shutdown(4),
+                exit()
+            ],
+            [
+                |receiver| expect_server_initialized(receiver, 1),
+                |receiver| {
+                    let edits: serde_json::Value = expect_response(receiver, 2);
+                    assert_eq!(edits, serde_json::Value::Null);
+                },
+                |receiver| {
+                    let edits: serde_json::Value = expect_response(receiver, 3);
+                    assert_eq!(edits, serde_json::Value::Null);
+                },
+                |receiver| expect_server_shutdown(receiver, 4)
             ]
         );
     }
