@@ -1,0 +1,2 @@
+# Legacy ignore rules still apply alongside the new ignore file.
+/src/ignored/LegacyIgnore.luau

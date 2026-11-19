@@ -1,0 +1,7 @@
+# A nearest legacy config still works. It replaces the root config for this folder.
+# Two spaces, single quotes, and final commas make the difference visible.
+syntax = "Luau"
+indent_type = "Spaces"
+indent_width = 2
+quote_style = "ForceSingle"
+table_trailing_comma = true

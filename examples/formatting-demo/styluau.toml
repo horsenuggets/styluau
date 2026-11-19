@@ -1,0 +1,41 @@
+# Formatting-only examples. Imports do not need to resolve or run in Roblox.
+# Run ./run-demo.sh to format the canonical examples in src/ in place.
+# Files listed in either ignore file remain unchanged.
+
+syntax = "Luau"
+column_width = 100
+comment_reflow = true
+comment_width = 90
+indent_type = "Spaces"
+indent_width = 4
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"
+space_inside_interpolation = false
+table_trailing_comma = false
+fusion = false
+
+# Each matching override merges with the base and all earlier matching overrides.
+# UI files use Fusion style, padded interpolation and two-space indentation.
+# Ordinary nested calls keep parens.
+[[overrides]]
+files = ["src/ui/**/*.luau"]
+indent_width = 2
+space_inside_interpolation = true
+fusion = true
+
+# A later rule restores trailing commas for this file, for values AND table types.
+[[overrides]]
+files = ["src/WithCommas.luau"]
+table_trailing_comma = true
+
+# This file matches both the general UI rule and this narrower rule.
+# The receiver list replaces the assumed scope/fusion names; indentation becomes four.
+[[overrides]]
+files = ["src/ui/CustomScope.luau"]
+indent_width = 4
+fusion_scope_names = ["uiScope"]
+
+# Empty names means only import/alias/derived-scope tracking can identify Fusion receivers.
+[[overrides]]
+files = ["src/ui/Imports.luau"]
+fusion_scope_names = []
