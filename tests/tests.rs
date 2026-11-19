@@ -13,6 +13,165 @@ fn format(input: &str, syntax: LuaVersion) -> String {
 
 #[test]
 #[cfg(feature = "luau")]
+fn test_space_inside_interpolation() {
+    assert!(!Config::default().space_inside_interpolation);
+    for (input, compact, spaced) in [
+        ("`{var}`", "`{var}`", "`{ var }`"),
+        ("`{  var  }`", "`{var}`", "`{ var }`"),
+        (
+            "`{first}{second}`",
+            "`{first}{second}`",
+            "`{ first }{ second }`",
+        ),
+        (
+            "`Hello {name}! {a+b}`",
+            "`Hello {name}! {a + b}`",
+            "`Hello { name }! { a + b }`",
+        ),
+        ("`{call(value)}`", "`{call(value)}`", "`{ call(value) }`"),
+        ("`{ {1,2} }`", "`{ { 1, 2 }}`", "`{ { 1, 2 } }`"),
+        ("`{ { } }`", "`{ {}}`", "`{ {} }`"),
+        (
+            "`{`nested {value}`}`",
+            "`{`nested {value}`}`",
+            "`{ `nested { value }` }`",
+        ),
+        (
+            r"`\{} {value} \u{0041}`",
+            r"`\{} {value} \u{0041}`",
+            r"`\{} { value } \u{0041}`",
+        ),
+        (
+            r"`  literal \{}  `",
+            r"`  literal \{}  `",
+            r"`  literal \{}  `",
+        ),
+        (r#""{var}""#, r#""{var}""#, r#""{var}""#),
+        ("[[{var}]]", "[[{var}]]", "[[{var}]]"),
+    ] {
+        for enabled in [false, true] {
+            let config = Config {
+                syntax: LuaVersion::Luau,
+                space_inside_interpolation: enabled,
+                ..Config::default()
+            };
+            let input = format!("local value = {input}\n");
+            let expected = format!("local value = {}\n", if enabled { spaced } else { compact });
+            let output =
+                format_code(&input, config.clone(), None, OutputVerification::Full).unwrap();
+            assert_eq!(output, expected);
+            assert_eq!(
+                output,
+                format_code(&output, config, None, OutputVerification::Full).unwrap()
+            );
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "luau")]
+fn test_interpolation_spacing_comments_and_layout() {
+    for input in [
+        "local s = `{ --[[before]] value --[[after]] }`\n",
+        "local s = `{ -- before\nvalue -- after\n}`\n",
+        "local s = `{function()\nreturn value\nend}`\n",
+        "local s = `{ {\nFirst = 1,\nSecond = 2\n} }`\n",
+        "local s = `{call(firstArgument, secondArgument, thirdArgument)} {other}`\n",
+        "local s = `first\\\n{value} last`\n",
+    ] {
+        for enabled in [false, true] {
+            for column_width in [40, 80, 120] {
+                let config = Config {
+                    syntax: LuaVersion::Luau,
+                    space_inside_interpolation: enabled,
+                    column_width,
+                    ..Config::default()
+                };
+                let output = format_code(input, config.clone(), None, OutputVerification::Full)
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Input {:?}, spacing {}, width {}. {}",
+                            input, enabled, column_width, err
+                        )
+                    });
+                for comment in ["--[[before]]", "--[[after]]", "-- before", "-- after"] {
+                    if input.contains(comment) {
+                        assert!(output.contains(comment), "{}", output);
+                    }
+                }
+                assert_eq!(
+                    output,
+                    format_code(&output, config, None, OutputVerification::Full).unwrap(),
+                    "Input {input:?}, spacing {enabled}, width {column_width}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "luau")]
+fn test_interpolation_spacing_exact_comments_and_width_boundary() {
+    for (input, column_width, compact, spaced) in [
+        (
+            "local s = `{ --[[before]] value --[[after]] }`\n",
+            120,
+            "local s = `{ --[[before]]value --[[after]]}`\n",
+            "local s = `{ --[[before]] value --[[after]] }`\n",
+        ),
+        (
+            "local s = `{ -- before\nvalue -- after\n}`\n",
+            120,
+            "local s = `{ -- before\nvalue -- after\n}`\n",
+            "local s = `{ -- before\n value -- after\n}`\n",
+        ),
+        (
+            "return `{call(firstArgument, secondArgument)}`\n",
+            44,
+            "return `{call(firstArgument, secondArgument)}`\n",
+            "return `{ call(\n\tfirstArgument,\n\tsecondArgument\n) }`\n",
+        ),
+    ] {
+        for enabled in [false, true] {
+            let config = Config {
+                syntax: LuaVersion::Luau,
+                column_width,
+                space_inside_interpolation: enabled,
+                ..Config::default()
+            };
+            let output =
+                format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+            assert_eq!(output, if enabled { spaced } else { compact });
+            assert_eq!(
+                output,
+                format_code(&output, config, None, OutputVerification::Full).unwrap()
+            );
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "luau")]
+fn test_interpolation_spacing_respects_ignore() {
+    let input = "-- [styluau] ignore\nlocal raw= `{value}`\nlocal formatted= `{value}`\n";
+    let config = Config {
+        syntax: LuaVersion::Luau,
+        space_inside_interpolation: true,
+        ..Config::default()
+    };
+    let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+    assert_eq!(
+        output,
+        "-- [styluau] ignore\nlocal raw= `{value}`\nlocal formatted = `{ value }`\n"
+    );
+    assert_eq!(
+        output,
+        format_code(&output, config, None, OutputVerification::Full).unwrap()
+    );
+}
+
+#[test]
+#[cfg(feature = "luau")]
 fn test_table_trailing_comma_option() {
     let input = "local t = {\n  1,\n  2,\n}\ntype T = {\n  a: number,\n  b: string,\n}\n";
     for trailing in [false, true] {
@@ -288,11 +447,11 @@ fn test_fusion_directives_survive_require_sorting() {
         sort_requires: SortRequiresConfig { enabled: true },
         ..Config::default()
     };
-    let input = "-- styluau: fusion on\nlocal z = require(scope:New(\"Frame\")({}))\nlocal a = require(\"a\")\nlocal m = require(\"m\")\n";
+    let input = "-- [styluau] fusion on\nlocal z = require(scope:New(\"Frame\")({}))\nlocal a = require(\"a\")\nlocal m = require(\"m\")\n";
     let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
     assert_eq!(
         output,
-        "-- styluau: fusion on\nlocal z = require(scope:New \"Frame\" {})\nlocal a = require(\"a\")\nlocal m = require(\"m\")\n"
+        "-- [styluau] fusion on\nlocal z = require(scope:New \"Frame\" {})\nlocal a = require(\"a\")\nlocal m = require(\"m\")\n"
     );
     assert_eq!(
         output,
@@ -312,7 +471,7 @@ fn test_fusion_regions_survive_inline_require_directives() {
         sort_requires: SortRequiresConfig { enabled: true },
         ..Config::default()
     };
-    let input = "local z = require(scope:New(\"Frame\")({}))\n--[[styluau: fusion off start]] local a = require(scope:New(\"Frame\")({}))\n-- styluau: fusion end\nlocal b = require(scope:New(\"Frame\")({}))\n";
+    let input = "local z = require(scope:New(\"Frame\")({}))\n--[[[styluau] fusion off start]] local a = require(scope:New(\"Frame\")({}))\n-- [styluau] fusion end\nlocal b = require(scope:New(\"Frame\")({}))\n";
     let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
     assert!(
         output.contains("local z = require(scope:New \"Frame\" {})"),
@@ -344,7 +503,7 @@ fn test_fusion_regions_survive_inline_require_directives() {
 #[cfg(feature = "luau")]
 fn test_fusion_comment_overrides() {
     use styluau_lib::CallParenType;
-    let input = "-- styluau: fusion on\nlocal a = scope:New(\"Frame\")({})\nlocal b = scope:New(\"Frame\")({})\n-- styluau: fusion on start\nlocal c = scope:New(\"Frame\")({})\n-- styluau: fusion off start\nlocal d = scope:New(\"Frame\")({})\n-- styluau: fusion end\n-- styluau: fusion scope custom\nlocal e = custom:New(\"Frame\")({})\n-- styluau: fusion not-scope scope\nlocal f = scope:New(\"Frame\")({})\n-- styluau: fusion end\nlocal g = scope:New(\"Frame\")({})\n";
+    let input = "-- [styluau] fusion on\nlocal a = scope:New(\"Frame\")({})\nlocal b = scope:New(\"Frame\")({})\n-- [styluau] fusion on start\nlocal c = scope:New(\"Frame\")({})\n-- [styluau] fusion off start\nlocal d = scope:New(\"Frame\")({})\n-- [styluau] fusion end\n-- [styluau] fusion scope custom\nlocal e = custom:New(\"Frame\")({})\n-- [styluau] fusion not-scope scope\nlocal f = scope:New(\"Frame\")({})\n-- [styluau] fusion end\nlocal g = scope:New(\"Frame\")({})\n";
     let config = Config {
         syntax: LuaVersion::Luau,
         call_parentheses: CallParenType::Always,
@@ -379,7 +538,7 @@ fn test_fusion_comment_overrides() {
 #[cfg(feature = "luau")]
 fn test_fusion_comment_field_and_block_scope() {
     use styluau_lib::CallParenType;
-    let input = "local t = {\n-- styluau: fusion on\na = scope:New(\"Frame\")({}),\nb = scope:New(\"Frame\")({}),\n}\ndo\n-- styluau: fusion on start\nlocal c = scope:New(\"Frame\")({})\n-- styluau: fusion end\nend\nlocal d = scope:New(\"Frame\")({})\n";
+    let input = "local t = {\n-- [styluau] fusion on\na = scope:New(\"Frame\")({}),\nb = scope:New(\"Frame\")({}),\n}\ndo\n-- [styluau] fusion on start\nlocal c = scope:New(\"Frame\")({})\n-- [styluau] fusion end\nend\nlocal d = scope:New(\"Frame\")({})\n";
     let config = Config {
         syntax: LuaVersion::Luau,
         call_parentheses: CallParenType::Always,
@@ -411,7 +570,7 @@ fn test_fusion_comment_field_and_block_scope() {
 #[test]
 #[cfg(feature = "luau")]
 fn test_fusion_region_applies_inside_formatting_range() {
-    let source = "-- styluau: fusion on start\nlocal a = scope:New(\"Frame\")({})\nlocal b = scope:New(\"Frame\")({})\n-- styluau: fusion end\nlocal c = scope:New(\"Frame\")({})\n";
+    let source = "-- [styluau] fusion on start\nlocal a = scope:New(\"Frame\")({})\nlocal b = scope:New(\"Frame\")({})\n-- [styluau] fusion end\nlocal c = scope:New(\"Frame\")({})\n";
     let start = source.find("local b").unwrap();
     let config = Config {
         syntax: LuaVersion::Luau,
@@ -440,7 +599,7 @@ fn test_fusion_region_applies_inside_formatting_range() {
 #[test]
 #[cfg(feature = "luau")]
 fn test_fusion_field_directive_applies_to_range_body() {
-    let source = "local t = {\n-- styluau: fusion off\ncallback = function()\nlocal x = scope:New(\"Frame\")({})\nend,\n}\n";
+    let source = "local t = {\n-- [styluau] fusion off\ncallback = function()\nlocal x = scope:New(\"Frame\")({})\nend,\n}\n";
     let start = source.find("local x").unwrap();
     let end = start + source[start..].find('\n').unwrap();
     let config = Config {
@@ -464,12 +623,58 @@ fn test_fusion_field_directive_applies_to_range_body() {
 
 #[test]
 fn test_ignore_directive_names() {
-    for name in ["styluau", "stylua"] {
-        let input = format!("-- {}: ignore\nlocal x=  1\nlocal y=2\n", name);
-        let output = format(&input, LuaVersion::Lua51);
-        assert!(output.contains("local x=  1"), "{}", output);
-        assert!(output.contains("local y = 2"), "{}", output);
+    let config = Config {
+        syntax: LuaVersion::Lua51,
+        ..Config::default()
+    };
+    for prefix in ["[styluau]", "stylua:"] {
+        for (open, close) in [("-- ", ""), ("--[[", "]]"), ("--[=[\n", "\n]=]")] {
+            for input in [
+                format!(
+                    "{}{} ignore{}\nlocal x=  1\nlocal y=2\n",
+                    open, prefix, close
+                ),
+                format!(
+                    "{}{} ignore start{}\nlocal x=  1\n{}{} ignore end{}\nlocal y=2\n",
+                    open, prefix, close, open, prefix, close
+                ),
+            ] {
+                let output =
+                    format_code(&input, config.clone(), None, OutputVerification::Full).unwrap();
+                assert!(output.contains("local x=  1"), "{}", output);
+                assert!(output.contains("local y = 2"), "{}", output);
+                assert_eq!(
+                    output,
+                    format_code(&output, config.clone(), None, OutputVerification::Full).unwrap()
+                );
+            }
+        }
     }
+}
+
+#[test]
+fn test_ignore_directive_prefix_lookalikes_are_plain_comments() {
+    for prefix in ["styluau:", "[styluau-extra]", "styluau]", "[styluau"] {
+        let input = format!("-- {} ignore\nlocal x=  1\n", prefix);
+        let output = format(&input, LuaVersion::Lua51);
+        assert!(output.contains("local x = 1"), "{}", output);
+    }
+}
+
+#[test]
+fn test_bracket_ignore_regions_on_table_fields() {
+    let input = "local t = {\n-- [styluau] ignore start\nraw=  {1,  2,3,},\n-- [styluau] ignore end\nnormal=  4,\n}\n";
+    let config = Config {
+        syntax: LuaVersion::Lua51,
+        ..Config::default()
+    };
+    let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+    assert!(output.contains("raw=  {1,  2,3,},"), "{}", output);
+    assert!(output.contains("normal = 4"), "{}", output);
+    assert_eq!(
+        output,
+        format_code(&output, config, None, OutputVerification::Full).unwrap()
+    );
 }
 
 #[test]

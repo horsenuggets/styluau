@@ -243,6 +243,14 @@ impl LanguageServer<'_> {
                         "invalid Fusion directive: {message}"
                     )))
                 }
+                Err(styluau_lib::Error::CommentDirectiveError(message)) => {
+                    return Err(FormattingError::DirectiveError(format!(
+                        "invalid comment directive: {message}"
+                    )))
+                }
+                Err(styluau_lib::Error::ConfigError(message)) => {
+                    return Err(FormattingError::ConfigError(message))
+                }
                 Err(_) => return Err(FormattingError::StyLuauError),
             };
 
@@ -1088,37 +1096,41 @@ mod tests {
     }
 
     #[test]
-    fn test_lsp_reports_fusion_directive_errors() {
-        let contents = "local a = 1\n-- styluau: fusion end\nlocal b = 2";
-        let cwd = construct_tree!({
-            "foo.lua": contents,
-        });
-        let uri = Uri::from_str(cwd.child("foo.lua").to_str().unwrap()).unwrap();
-        lsp_test!(
-            [],
-            [
-                initialize(1, Some(cwd.path())),
-                initialized(),
-                open_text_document(uri.clone(), contents.to_string()),
-                format_document(2, uri.clone(), FormattingOptions::default()),
-                shutdown(3),
-                exit()
-            ],
-            [
-                |receiver| expect_server_initialized(receiver, 1),
-                |receiver: &Receiver<Message>| {
-                    let Message::Response(Response {
-                        error: Some(error), ..
-                    }) = receiver.recv().unwrap()
-                    else {
-                        panic!("Expected a directive error");
-                    };
-                    assert_eq!(error.code, ErrorCode::RequestFailed as i32);
-                    assert!(error.message.contains("unmatched end"), "{}", error.message);
-                },
-                |receiver| expect_server_shutdown(receiver, 3)
-            ]
-        );
+    fn test_lsp_reports_directive_errors() {
+        for contents in [
+            "local a = 1\n-- [styluau] fusion end\nlocal b = 2",
+            "local a = 1\n-- [styluau] comments end\nlocal b = 2",
+        ] {
+            let cwd = construct_tree!({
+                "foo.lua": contents,
+            });
+            let uri = Uri::from_str(cwd.child("foo.lua").to_str().unwrap()).unwrap();
+            lsp_test!(
+                [],
+                [
+                    initialize(1, Some(cwd.path())),
+                    initialized(),
+                    open_text_document(uri.clone(), contents.to_string()),
+                    format_document(2, uri.clone(), FormattingOptions::default()),
+                    shutdown(3),
+                    exit()
+                ],
+                [
+                    |receiver| expect_server_initialized(receiver, 1),
+                    |receiver: &Receiver<Message>| {
+                        let Message::Response(Response {
+                            error: Some(error), ..
+                        }) = receiver.recv().unwrap()
+                        else {
+                            panic!("Expected a directive error");
+                        };
+                        assert_eq!(error.code, ErrorCode::RequestFailed as i32);
+                        assert!(error.message.contains("unmatched end"), "{}", error.message);
+                    },
+                    |receiver| expect_server_shutdown(receiver, 3)
+                ]
+            );
+        }
     }
 
     #[test]
