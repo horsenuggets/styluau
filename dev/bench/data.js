@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795043685787,
+  "lastUpdate": 1795109964813,
   "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
@@ -18437,6 +18437,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 19184764,
             "range": "± 198901",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "853e7caf9ee3468695c5d82da7a079df1a1164a2",
+          "message": "Add comment reflow, interpolation spacing and a Luau showcase (#3)\n\n* Add configurable prose formatting and bracket comment controls\n\nIntroduce Markdown-aware comment reflow, interpolation spacing and local comment controls while keeping existing formatting defaults unchanged.\n\n* Add a Luau showcase for formatter controls and overrides\n\nKeep nine canonical examples and verify CLI overrides, ignored files and idempotence so formatter behavior is easy to inspect and exercise locally.\n\n* Use byte-string syntax for Markdown marker checks\n\nKeep the marker check compatible with the newer Clippy lint used in CI.",
+          "timestamp": "2026-11-19T11:37:37-06:00",
+          "tree_id": "a8ca80289d2d4b7473fb28d103f86f6b774b4816",
+          "url": "https://github.com/horsenuggets/styluau/commit/853e7caf9ee3468695c5d82da7a079df1a1164a2"
+        },
+        "date": 1795109963696,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 23289940,
+            "range": "± 638112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 192680834,
+            "range": "± 653639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 15321079,
+            "range": "± 190305",
             "unit": "ns/iter"
           }
         ]
