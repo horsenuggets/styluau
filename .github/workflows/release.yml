@@ -1,244 +1,126 @@
 name: Release
 
 on:
-  push:
-    tags: ["*"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: github-release
+  cancel-in-progress: false
+
 jobs:
-  create-release:
-    name: Create Release
+  release-metadata:
+    name: release-metadata
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.metadata.outputs.version }}
+      extension_version: ${{ steps.metadata.outputs.extension_version }}
+      matrix: ${{ steps.metadata.outputs.matrix }}
     steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: true
+          python-version: '3.12'
+      - name: Validate release metadata and contracts
+        id: metadata
+        run: |
+          python -m unittest discover -s .github -p 'test_release.py'
+          python .github/release.py metadata --root . --github-output "$GITHUB_OUTPUT"
 
-  release:
-    needs: ["create-release"]
+  build-cli:
+    name: build-cli-${{ matrix.artifact }}
+    needs: release-metadata
     strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            artifact-name: styluau-windows-x86_64
-            cargo-target: x86_64-pc-windows-msvc
-          - os: ubuntu-22.04
-            artifact-name: styluau-linux-x86_64
-            cargo-target: x86_64-unknown-linux-gnu
-          - os: ubuntu-22.04
-            artifact-name: styluau-linux-x86_64-musl
-            cargo-target: x86_64-unknown-linux-musl
-          - os: ubuntu-22.04-arm
-            artifact-name: styluau-linux-aarch64
-            cargo-target: aarch64-unknown-linux-gnu
-          - os: ubuntu-22.04-arm
-            artifact-name: styluau-linux-aarch64-musl
-            cargo-target: aarch64-unknown-linux-musl
-          - os: macos-latest
-            artifact-name: styluau-macos-x86_64
-            cargo-target: x86_64-apple-darwin
-          - os: macos-latest
-            artifact-name: styluau-macos-aarch64
-            cargo-target: aarch64-apple-darwin
-
-    name: Build (${{ matrix.artifact-name }})
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.release-metadata.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
         with:
-          target: ${{ matrix.cargo-target }}
-
-      - name: Build Binary (All features)
-        run: cargo build --verbose --locked --release --features lua52,lua53,lua54,luau,luajit,cfxlua --target ${{ matrix.cargo-target }}
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+      - name: Build all syntax features
         env:
           CARGO_TARGET_DIR: output
-
-      - name: Setup Archive + Extension
+          CARGO_TARGET: ${{ matrix.target }}
         shell: bash
-        run: |
-          mkdir -p staging
-
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp "output/${{ matrix.cargo-target }}/release/styluau.exe" staging/
-            cd staging
-            7z a ../release.zip *
-          else
-            cp "output/${{ matrix.cargo-target }}/release/styluau" staging/
-            cd staging
-            zip ../release.zip *
-          fi
-
-      - name: Upload Binary Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: release.zip
-
-      - name: Upload Binary to Release
-        uses: actions/upload-release-asset@v1
+        run: cargo build --locked --release --all-features --target "$CARGO_TARGET"
+      - name: Package executable
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_TARGET: ${{ matrix.target }}
+          ARTIFACT_NAME: ${{ matrix.artifact }}
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import zipfile
+          binary = "styluau.exe" if os.environ["CARGO_TARGET"].endswith("windows-msvc") else "styluau"
+          source = Path("output") / os.environ["CARGO_TARGET"] / "release" / binary
+          Path("staging").mkdir()
+          with zipfile.ZipFile(Path("staging") / (os.environ["ARTIFACT_NAME"] + ".zip"), "w", zipfile.ZIP_DEFLATED) as archive:
+              archive.write(source, binary)
+      - uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: release.zip
-          asset_name: ${{ matrix.artifact-name }}.zip
-          asset_content_type: application/zip
+          name: ${{ matrix.artifact }}
+          path: staging/*.zip
+          if-no-files-found: error
 
-  release_cargo:
-    name: Publish to cargo
+  build-extension:
+    name: build-extension
+    needs: release-metadata
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - name: Install locked dependencies
+        working-directory: stylua-vscode
+        run: npm ci
+      - name: Package universal extension
+        working-directory: stylua-vscode
+        env:
+          EXTENSION_PUBLISHER: ${{ github.repository_owner }}
+          EXTENSION_REPOSITORY: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.release-metadata.outputs.version }}
+          STYLUAU_RELEASES_URL: https://api.github.com/repos/${{ github.repository }}/releases
+        run: |
+          npm pkg set "publisher=$EXTENSION_PUBLISHER" "repository.type=git" \
+            "repository.url=https://github.com/$EXTENSION_REPOSITORY.git"
+          cp ../LICENSE.md LICENSE.md
+          npx --yes @vscode/vsce@3.7.1 package --githubBranch "$RELEASE_VERSION" --out ../styluau.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: styluau-extension
+          path: styluau.vsix
+          if-no-files-found: error
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish to cargo
-        run: cargo publish --verbose --locked --token ${{ secrets.CARGO_TOKEN }}
-
-  release_npm_wasm:
-    name: Publish wasm to npm
+  publish-release:
+    name: publish-release
+    needs: [release-metadata, build-cli, build-extension]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
         with:
-          target: wasm32-unknown-unknown
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
         with:
-          node-version: "24.x"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Build WASM
-        run: |
-          chmod u+x ./wasm/build-wasm.sh
-          ./wasm/build-wasm.sh
-
-      - name: Publish to npm
-        working-directory: wasm
-        run: npm publish
-
-  release_npm_bin:
-    name: Publish binary to npm
-    needs: [release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24.x"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Setup README and LICENSE
-        run: |
-          cp README.md stylua-npm-bin/
-          cp LICENSE.md stylua-npm-bin/
-
-      - name: Download Linux x64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: styluau-linux-x86_64
-          path: /tmp/artifacts/linux-x64
-
-      - name: Download Linux arm64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: styluau-linux-aarch64
-          path: /tmp/artifacts/linux-arm64
-
-      - name: Download macOS x64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: styluau-macos-x86_64
-          path: /tmp/artifacts/darwin-x64
-
-      - name: Download macOS arm64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: styluau-macos-aarch64
-          path: /tmp/artifacts/darwin-arm64
-
-      - name: Download Windows x64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: styluau-windows-x86_64
-          path: /tmp/artifacts/win32-x64
-
-      - name: Extract binaries into platform packages
-        run: |
-          for PLATFORM in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
-            unzip -o /tmp/artifacts/$PLATFORM/release.zip \
-              -d "$GITHUB_WORKSPACE/stylua-npm-bin/platforms/$PLATFORM/"
-          done
-
-      - name: Publish platform packages to npm
-        run: |
-          for PLATFORM in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
-            cd "$GITHUB_WORKSPACE/stylua-npm-bin/platforms/$PLATFORM"
-            npm publish
-          done
-
-      - name: Publish main package to npm
-        working-directory: stylua-npm-bin
-        run: npm publish
-
-  release_docker:
-    name: Publish image to container registry
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-        id: buildx
-        with:
-          install: true
-
-      - uses: docker/metadata-action@v5
-        id: meta
+          path: release-artifacts
+          merge-multiple: true
+      - name: Validate, upload, and publish complete GitHub release
         env:
-          DOCKER_METADATA_PR_HEAD_SHA: "true"
-        with:
-          images: ${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=sha
-
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v5
-        with:
-          platforms: linux/amd64,linux/arm64
-          push: true
-          context: .
-          file: Dockerfile
-          builder: ${{ steps.buildx.outputs.name }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXTENSION_PUBLISHER: ${{ github.repository_owner }}
+        run: |
+          python .github/release.py publish --root . --artifacts release-artifacts \
+            --publisher "$EXTENSION_PUBLISHER" --repository "$GH_REPO" --commit "$GITHUB_SHA"
