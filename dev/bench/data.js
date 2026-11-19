@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795109964813,
+  "lastUpdate": 1795114633627,
   "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
@@ -18479,6 +18479,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 15321079,
             "range": "± 190305",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e1f7028312cf3e62a93015c538e2e9c6822044cf",
+          "message": "Publish the first StyLuau CLI and editor release (#4)\n\n* Publish verified CLI and editor artifacts through GitHub\n\n* Bump version to 2.6.0-horse.1.0",
+          "timestamp": "2026-11-19T12:55:15-06:00",
+          "tree_id": "b3fe453ba01774e947d1792424c4f54eeb7d6134",
+          "url": "https://github.com/horsenuggets/styluau/commit/e1f7028312cf3e62a93015c538e2e9c6822044cf"
+        },
+        "date": 1795114632619,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 27660637,
+            "range": "± 236046",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 227476908,
+            "range": "± 507602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 17154767,
+            "range": "± 315790",
             "unit": "ns/iter"
           }
         ]
