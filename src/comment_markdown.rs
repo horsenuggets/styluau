@@ -186,7 +186,7 @@ fn syntax_at_line_start(word: &str) -> bool {
         || (word.contains('-') && word.bytes().all(|byte| matches!(byte, b'-' | b':' | b'|')))
         || word.starts_with("```")
         || word.starts_with("~~~")
-        || [b'-', b'*', b'_', b'=']
+        || b"-*_="
             .iter()
             .any(|marker| !word.is_empty() && word.bytes().all(|character| character == *marker))
         || word.strip_suffix(['.', ')']).is_some_and(|number| {
