@@ -37,6 +37,30 @@ fn test_format_stdin() {
 }
 
 #[test]
+#[cfg(feature = "luau")]
+fn test_formatting_demo_is_formatted_and_idempotent() {
+    let demo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/formatting-demo");
+    let cases = include_str!("../examples/formatting-demo/cases.txt");
+    assert!(!cases.trim().is_empty());
+    assert!(!demo.join("formatted").exists());
+
+    for source in cases.lines().filter(|line| !line.is_empty()) {
+        assert!(source.ends_with(".luau"), "Non-Luau demo case {}", source);
+        let source_path = demo.join(source);
+        let expected = std::fs::read_to_string(&source_path).unwrap();
+        create_stylua()
+            .current_dir(&demo)
+            .args(["--verify", "--respect-ignores", "--stdin-filepath"])
+            .arg(&source_path)
+            .arg("-")
+            .write_stdin(expected.clone())
+            .assert()
+            .success()
+            .stdout(expected);
+    }
+}
+
+#[test]
 fn test_format_file() {
     let cwd = construct_tree!({
         "foo.lua": "local   x    =   1",
@@ -48,6 +72,57 @@ fn test_format_file() {
     cwd.child("foo.lua").assert("local x = 1\n");
 
     cwd.close().unwrap();
+}
+
+#[test]
+fn test_comment_reflow_config_and_overrides() {
+    let cwd = construct_tree!({
+        "styluau.toml": "comment_reflow = true\ncomment_width = 20\n[[overrides]]\nfiles = ['preserved.lua']\ncomment_reflow = false\n[[overrides]]\nfiles = ['wide.lua']\ncomment_width = 90\n",
+        "wrapped.lua": "-- one two three\n-- four five six\nlocal x=1\n",
+        "preserved.lua": "-- one\n-- two\nlocal x=1\n",
+        "wide.lua": "-- one two three\n-- four five six\nlocal x=1\n",
+    });
+    create_stylua()
+        .current_dir(cwd.path())
+        .args(["--verify", "."])
+        .assert()
+        .success();
+    for (path, expected) in [
+        (
+            "wrapped.lua",
+            "-- one two three\n-- four five six\nlocal x = 1\n",
+        ),
+        ("preserved.lua", "-- one\n-- two\nlocal x = 1\n"),
+        ("wide.lua", "-- one two three four five six\nlocal x = 1\n"),
+    ] {
+        cwd.child(path).assert(expected);
+        create_stylua()
+            .current_dir(cwd.path())
+            .args(["--verify", "--stdin-filepath", path, "-"])
+            .write_stdin(if path == "preserved.lua" {
+                "-- one\n-- two\nlocal x=1\n"
+            } else {
+                "-- one two three\n-- four five six\nlocal x=1\n"
+            })
+            .assert()
+            .success()
+            .stdout(expected);
+    }
+}
+
+#[test]
+fn test_zero_comment_width_is_rejected() {
+    let cwd = construct_tree!({
+        "styluau.toml": "comment_reflow = true\ncomment_width = 0\n",
+        "source.lua": "local x=1\n",
+    });
+    let result = create_stylua()
+        .current_dir(cwd.path())
+        .arg("source.lua")
+        .assert()
+        .failure();
+    assert!(String::from_utf8_lossy(&result.get_output().stderr)
+        .contains("comment_width must be greater than zero"));
 }
 
 #[test]
@@ -68,6 +143,56 @@ fn test_styluau_config_trailing_comma() {
             .assert()
             .success();
         cwd.child("foo.lua").assert(expected);
+    }
+}
+
+#[test]
+#[cfg(feature = "luau")]
+fn test_interpolation_spacing_config_and_overrides() {
+    for enabled in [false, true] {
+        let cwd = construct_tree!({
+            "base.luau": "local s= `{value}`\n",
+            "ui/panel.luau": "local s= `{value}`\n",
+            "ui/compact.luau": "local s= `{ value }`\n",
+        });
+        cwd.child("styluau.toml")
+            .write_str(&format!(
+                "syntax = 'Luau'\nspace_inside_interpolation = {}\n[[overrides]]\nfiles = ['ui/**/*.luau']\nspace_inside_interpolation = true\n[[overrides]]\nfiles = ['ui/compact.luau']\nspace_inside_interpolation = false\n",
+                enabled
+            ))
+            .unwrap();
+        create_stylua()
+            .current_dir(cwd.path())
+            .args(["--verify", "."])
+            .assert()
+            .success();
+        cwd.child("base.luau").assert(if enabled {
+            "local s = `{ value }`\n"
+        } else {
+            "local s = `{value}`\n"
+        });
+        cwd.child("ui/panel.luau").assert("local s = `{ value }`\n");
+        cwd.child("ui/compact.luau").assert("local s = `{value}`\n");
+        for (filename, expected) in [
+            (
+                "base.luau",
+                if enabled {
+                    "local s = `{ value }`\n"
+                } else {
+                    "local s = `{value}`\n"
+                },
+            ),
+            ("ui/panel.luau", "local s = `{ value }`\n"),
+            ("ui/compact.luau", "local s = `{value}`\n"),
+        ] {
+            create_stylua()
+                .current_dir(cwd.path())
+                .args(["--verify", "--stdin-filepath", filename, "-"])
+                .write_stdin("local s= `{value}`\n")
+                .assert()
+                .success()
+                .stdout(expected);
+        }
     }
 }
 

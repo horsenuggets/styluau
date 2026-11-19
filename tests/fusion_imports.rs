@@ -30,7 +30,7 @@ fn imported_bindings_are_conservative() {
 
 #[test]
 fn comment_exclusion_overrides_import_detection() {
-    let source = "local F = require('@packages/Fusion')\nlocal ui = F:scoped()\n-- styluau: fusion not-scope ui\nlocal first = ui:New(\"Frame\")({})\n-- styluau: fusion scope ui\nlocal second = ui:New(\"Frame\")({})\n";
+    let source = "local F = require('@packages/Fusion')\nlocal ui = F:scoped()\n-- [styluau] fusion not-scope ui\nlocal first = ui:New(\"Frame\")({})\n-- [styluau] fusion scope ui\nlocal second = ui:New(\"Frame\")({})\n";
     let config = Config {
         syntax: LuaVersion::Luau,
         fusion: true,

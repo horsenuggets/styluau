@@ -289,9 +289,20 @@ fn load_token_trivia(
     let mut token_trivia = Vec::new();
 
     let mut newline_count_in_succession = 0;
-    let mut trivia_iter = current_trivia.iter().peekable();
+    let mut index = 0;
 
-    while let Some(trivia) = trivia_iter.next() {
+    while let Some(trivia) = current_trivia.get(index) {
+        if matches!(format_token_type, FormatTokenType::LeadingTrivia) {
+            if let Some((rendered, consumed)) =
+                crate::comment_reflow::format_group(ctx, &current_trivia[index..], shape)
+            {
+                token_trivia.extend(rendered);
+                index += consumed;
+                newline_count_in_succession = 0;
+                continue;
+            }
+        }
+        index += 1;
         match trivia.token_type() {
             TokenType::Whitespace { characters } => {
                 // Handle cases where the user has left a newline gap in between e.g. two statements
@@ -310,7 +321,7 @@ fn load_token_trivia(
                     FormatTokenType::TrailingTrivia => {
                         // If the next trivia is a MultiLineComment, and this whitespace is just spacing, then we
                         // will preserve a single space
-                        if let Some(next_trivia) = trivia_iter.peek() {
+                        if let Some(next_trivia) = current_trivia.get(index) {
                             if let TokenType::MultiLineComment { .. } = next_trivia.token_type() {
                                 if !characters.contains('\n') {
                                     token_trivia.push(Token::new(TokenType::spaces(1)))
@@ -330,11 +341,11 @@ fn load_token_trivia(
                 // If we have a comment, when `format_token` is called, it will put a newline at the end
                 // If this happens, we want to skip the next iteration if its a newline, as that has already been covered here
                 if let FormatTokenType::LeadingTrivia = format_token_type {
-                    if let Some(next_trivia) = trivia_iter.peek() {
+                    if let Some(next_trivia) = current_trivia.get(index) {
                         if let TokenType::Whitespace { characters } = next_trivia.token_type() {
                             if characters.contains('\n') {
                                 // Consume iterator once to skip the next iteration
-                                trivia_iter.next();
+                                index += 1;
                             }
                         }
                     }

@@ -85,11 +85,11 @@ Note that this may produce false positives and negatives - we recommend manual v
 
 ### Ignoring parts of a file
 
-To skip formatting a particular part of a file, you can add `-- styluau: ignore` before it.
-This is useful if there is a particular style you want to preseve for readability, e.g.:
+To skip formatting a particular part of a file, add `-- [styluau] ignore` before it.
+This is useful for preserving a particular layout for readability...
 
 ```luau
--- styluau: ignore
+-- [styluau] ignore
 local matrix = {
     { 0, 0, 0 },
     { 0, 0, 0 },
@@ -97,18 +97,24 @@ local matrix = {
 }
 ```
 
-To skip a block of code, use `-- styluau: ignore start` and `-- styluau: ignore end`:
+To skip a block of code, use `-- [styluau] ignore start` and
+`-- [styluau] ignore end`...
 
 ```luau
 local foo = true
--- styluau: ignore start
+-- [styluau] ignore start
 local   bar   =   false
 local  baz      = 0
--- styluau: ignore end
+-- [styluau] ignore end
 local foobar = false
 ```
 
-Note that ignoring cannot cross scope boundaries - once a block is exited, formatting is re-enabled.
+Ignoring cannot cross scope boundaries. Once a block is exited, formatting is re-enabled.
+
+All current StyLuau controls use the `[styluau]` prefix, including Fusion controls. The
+previous `styluau:` spelling is not recognized. Existing upstream `stylua: ignore`,
+`stylua: ignore start` and `stylua: ignore end` aliases remain supported. These commands
+also work on trimmed lines inside multiline comments.
 
 ### Formatting Ranges
 
@@ -211,17 +217,17 @@ formatting for that node. Region comments may be nested and must end in the same
 block...
 
 ```luau
--- styluau: fusion on
+-- [styluau] fusion on
 local frame = scope:New("Frame")({})
 
--- styluau: fusion on start
+-- [styluau] fusion on start
 local button = scope:New("TextButton")({})
--- styluau: fusion end
+-- [styluau] fusion end
 ```
 
-Use `-- styluau: fusion off` or `-- styluau: fusion off start` to disable formatting for
-the next statement or a region. Within a block, `-- styluau: fusion scope uiScope` marks
-a receiver as a Fusion scope, while `-- styluau: fusion not-scope scope` excludes it.
+Use `-- [styluau] fusion off` or `-- [styluau] fusion off start` to disable formatting for
+the next statement or a region. Within a block, `-- [styluau] fusion scope uiScope` marks
+a receiver as a Fusion scope, while `-- [styluau] fusion not-scope scope` excludes it.
 Invalid and unmatched directives cause a formatting error.
 
 ### Configuring Runtime Syntax Selection
@@ -245,6 +251,70 @@ Alternatively, you can specify it on the command line, with `styluau --syntax lu
 Multiline table values and Luau table types omit the final comma by default. Set
 `table_trailing_comma = true` in `styluau.toml` to include it instead.
 
+Set `space_inside_interpolation = true` in `styluau.toml` to add spaces inside Luau
+backtick-string interpolation braces. The default is `false`, and the setting also works
+in per-file `[[overrides]]`. Literal string contents and escaped braces are unchanged.
+
+```luau
+-- With space_inside_interpolation = false (the default).
+const greeting = `Hello {name}, you have {count + 1} items.`
+
+-- With space_inside_interpolation = true.
+const greeting = `Hello { name }, you have { count + 1 } items.`
+```
+
+A space before an interpolated table constructor is always retained because Luau rejects
+adjacent opening braces. This syntax requirement also applies when the option is `false`.
+
+**Comment Reflow**
+
+Enable Markdown-aware paragraph wrapping independently of code line length...
+
+```toml
+comment_reflow = true
+comment_width = 90
+```
+
+The boolean defaults to `false`, which retains existing comment formatting. The width
+must be positive and defaults to 90, including indentation and comment prefixes. Both
+settings also work in ordered per-file `[[overrides]]`.
+
+Standalone `--` groups and multiline comments join soft line breaks within paragraphs.
+Blank lines separate paragraphs. Markdown list items beginning with markers such as `1.`,
+`1)`, `-`, `+` or `*` remain separate, with hanging indentation when their prose wraps.
+Headings, code fences, indented code, tables, hard line breaks and blockquote structure are
+preserved. Inline code and links are not split. Indivisible words may exceed the width,
+and preserving Markdown structure takes precedence over the target width. Paragraphs
+with explicit hard breaks or multiline code/link spans retain their deliberate layout.
+String contents, comments trailing code, annotations and formatter directives are not
+reflowed. Wrapped block comments put their delimiters on separate lines so subsequent
+formatting uses the same width budget. Bracket depth and file-header closing markers are
+preserved.
+
+Use comment-only controls to preserve intentional layout without disabling code
+formatting...
+
+```luau
+-- [styluau] comments off
+-- Keep this comment group
+-- on deliberately short lines.
+const value = 1
+
+-- [styluau] comments off start
+-- A larger region can contain manually aligned comments.
+const other = 2
+-- [styluau] comments end
+```
+
+A one-shot `comments on` or `comments off` targets the next standalone comment group, not
+its code statement. A multiline comment is one group; consecutive standalone `--` lines
+form a group. Blank lines, code and directives separate groups.
+Place a control before the target comment, not inside its prose. Nested
+`comments on start` and `comments off start` regions restore the previous setting at
+`comments end`.
+Regions follow source order within the file. Malformed or unbalanced controls report an
+error with the line number. Existing formatting-ignore controls take precedence.
+
 StyLuau only offers the following options:
 
 > [!NOTE]  
@@ -254,12 +324,15 @@ StyLuau only offers the following options:
 | ---------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `syntax`                     | `All`              | Specify a disambiguation for the style of Lua syntax being formatted. Possible options: `All` (default), `Lua51`, `Lua52`, `Lua53`, `Lua54`, `LuaJIT`, `Luau`, `CfxLua`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `column_width`               | `120`              | Approximate line length for printing. Used as a guide for line wrapping - this is not a hard requirement: lines may fall under or over the limit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `comment_reflow`             | `false`            | Reflow standalone comment paragraphs while preserving Markdown structure.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `comment_width`              | `90`               | Positive comment line width, including indentation and comment prefixes. Independent of `column_width`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `line_endings`               | `Unix`             | Line endings type. Possible options: `Unix` (LF) or `Windows` (CRLF)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `indent_type`                | `Tabs`             | Indent type. Possible options: `Tabs` or `Spaces`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `indent_width`               | `4`                | Character size of single indentation. If `indent_type` is set to `Tabs`, this option is used as a heuristic to determine column width only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `quote_style`                | `AutoPreferDouble` | Quote style for string literals. Possible options: `AutoPreferDouble`, `AutoPreferSingle`, `ForceDouble`, `ForceSingle`. `AutoPrefer` styles will prefer the specified quote style, but fall back to the alternative if it has fewer string escapes. `Force` styles always use the specified style regardless of escapes.                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `call_parentheses`           | `Always`           | Whether parentheses should be applied on function calls with a single string/table argument. Possible options: `Always`, `NoSingleString`, `NoSingleTable`, `None`, `Input`. `Always` applies parentheses in all cases. `NoSingleString` omits parentheses on calls with a single string argument. Similarly, `NoSingleTable` omits parentheses on calls with a single table argument. `None` omits parentheses in both cases. Note: parentheses are still kept in situations where removal can lead to obscurity (e.g. `foo "bar".setup -> foo("bar").setup`, since the index is on the call result, not the string). `Input` removes all automation and preserves parentheses only if they were present in input code: consistency is not enforced. |
 | `space_after_function_names` | `Never`            | Specify whether to add a space between the function name and parentheses. Possible options: `Never`, `Definitions`, `Calls`, or `Always`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `space_inside_interpolation` | `false`            | Add one space inside Luau backtick-string interpolation braces, changing `{value}` to `{ value }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `block_newline_gaps`         | `Never`            | Specify whether to preserve leading and trailing newline gaps for blocks. Possible options: `Never`, `Preserve`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `collapse_simple_statement`  | `Never`            | Specify whether to collapse simple statements. Possible options: `Never`, `Input`, `FunctionOnly`, `ConditionalOnly`, or `Always`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
@@ -268,6 +341,8 @@ Default `styluau.toml`, note you do not need to explicitly specify each option i
 ```toml
 syntax = "All"
 column_width = 120
+comment_reflow = false
+comment_width = 90
 line_endings = "Unix"
 indent_type = "Tabs"
 indent_width = 4
@@ -275,6 +350,7 @@ quote_style = "AutoPreferDouble"
 call_parentheses = "Always"
 collapse_simple_statement = "Never"
 space_after_function_names = "Never"
+space_inside_interpolation = false
 block_newline_gaps = "Never"
 
 [sort_requires]

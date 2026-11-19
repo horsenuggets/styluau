@@ -7,6 +7,8 @@ use thiserror::Error;
 #[cfg(all(target_arch = "wasm32", feature = "wasm-bindgen"))]
 use wasm_bindgen::prelude::*;
 
+mod comment_markdown;
+mod comment_reflow;
 #[macro_use]
 mod context;
 #[cfg(feature = "editorconfig")]
@@ -244,6 +246,10 @@ pub struct Config {
     /// This is used as a guide to determine when to wrap lines, but note
     /// that this is not a hard upper bound.
     pub column_width: usize,
+    /// Whether to reflow standalone comment paragraphs using Markdown structure.
+    pub comment_reflow: bool,
+    /// The target comment width, including indentation and comment markers.
+    pub comment_width: usize,
     /// The type of line endings to use.
     pub line_endings: LineEndings,
     /// The type of indents to use.
@@ -284,6 +290,8 @@ pub struct Config {
     /// * if space_after_function_names is set to [`SpaceAfterFunctionNames::Calls`] a space is used only for calls.
     /// * if space_after_function_names is set to [`SpaceAfterFunctionNames::Always`] a space is used for both definitions and calls.
     pub space_after_function_names: SpaceAfterFunctionNames,
+    /// Whether to add spaces inside Luau string interpolation braces.
+    pub space_inside_interpolation: bool,
     /// Whether multiline tables have a trailing comma.
     pub table_trailing_comma: bool,
     /// Whether to omit call parentheses for supported Fusion constructors.
@@ -324,6 +332,8 @@ impl Default for Config {
         Self {
             syntax: LuaVersion::default(),
             column_width: 120,
+            comment_reflow: false,
+            comment_width: 90,
             line_endings: LineEndings::default(),
             indent_type: IndentType::default(),
             indent_width: 4,
@@ -333,6 +343,7 @@ impl Default for Config {
             collapse_simple_statement: CollapseSimpleStatement::default(),
             sort_requires: SortRequiresConfig::default(),
             space_after_function_names: SpaceAfterFunctionNames::default(),
+            space_inside_interpolation: false,
             block_newline_gaps: BlockNewlineGaps::default(),
             table_trailing_comma: false,
             fusion: false,
@@ -425,6 +436,12 @@ pub enum Error {
     /// The input AST has a parsing error.
     #[error("error parsing: {}", print_full_moon_errors(.0))]
     ParseError(Vec<full_moon::Error>),
+    /// A required formatting configuration value is invalid.
+    #[error("invalid configuration: {0}")]
+    ConfigError(String),
+    /// A comment directive is malformed or has mismatched region boundaries.
+    #[error("invalid comment directive: {0}")]
+    CommentDirectiveError(String),
     /// A Fusion directive is malformed or has mismatched region boundaries.
     #[error("invalid Fusion directive: {0}")]
     FusionDirectiveError(String),
@@ -444,7 +461,18 @@ pub fn format_ast(
     range: Option<Range>,
     verify_output: OutputVerification,
 ) -> Result<Ast, Error> {
-    let analyze_fusion = fusion_directives::validate(&input_ast)? || config.fusion;
+    if config.comment_width == 0 {
+        return Err(Error::ConfigError(
+            "comment_width must be greater than zero".to_owned(),
+        ));
+    }
+    let directives = fusion_directives::validate(&input_ast)?;
+    let comment_controls = comment_reflow::CommentControls::analyze(
+        &input_ast,
+        config.comment_reflow,
+        &directives.comment_scopes,
+    )?;
+    let analyze_fusion = directives.can_enable_fusion || config.fusion;
 
     // Clone the input AST only if we are verifying, to later use for checking
     let input_ast_for_verification = if let OutputVerification::Full = verify_output {
@@ -455,7 +483,7 @@ pub fn format_ast(
 
     let syntax = config.syntax;
     let sort_requires_enabled = config.sort_requires.enabled;
-    let ctx = Context::new(config, range);
+    let ctx = Context::new(config, range).with_comment_controls(comment_controls);
 
     // Perform require sorting beforehand if necessary
     let input_ast = match sort_requires_enabled {

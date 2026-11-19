@@ -16,6 +16,7 @@ struct Validator {
     table_openers: std::collections::HashSet<usize>,
     table_closers: std::collections::HashSet<usize>,
     can_enable: bool,
+    comment_scopes: std::collections::HashMap<usize, Vec<usize>>,
     error: Option<String>,
 }
 
@@ -52,9 +53,11 @@ impl Validator {
             | TokenType::MultiLineComment { comment, .. } => comment,
             _ => return,
         };
+        self.comment_scopes
+            .insert(token.start_position().bytes(), self.scopes.clone());
         for (offset, line) in comment.lines().enumerate() {
             let line = line.trim();
-            let Some(rest) = line.strip_prefix("styluau: fusion") else {
+            let Some(rest) = line.strip_prefix("[styluau] fusion") else {
                 continue;
             };
             if !rest.is_empty() && !rest.starts_with(char::is_whitespace) {
@@ -197,7 +200,12 @@ impl Visitor for Validator {
     }
 }
 
-pub(crate) fn validate(ast: &Ast) -> Result<bool, Error> {
+pub(crate) struct DirectiveInfo {
+    pub can_enable_fusion: bool,
+    pub comment_scopes: std::collections::HashMap<usize, Vec<usize>>,
+}
+
+pub(crate) fn validate(ast: &Ast) -> Result<DirectiveInfo, Error> {
     let mut validator = Validator::default();
     validator.visit_ast(ast);
     if let Some(error) = validator.error {
@@ -208,5 +216,8 @@ pub(crate) fn validate(ast: &Ast) -> Result<bool, Error> {
             "unclosed region starting on line {line}"
         )));
     }
-    Ok(validator.can_enable)
+    Ok(DirectiveInfo {
+        can_enable_fusion: validator.can_enable,
+        comment_scopes: validator.comment_scopes,
+    })
 }

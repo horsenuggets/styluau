@@ -26,6 +26,7 @@ pub struct Context {
     range: Option<FormatRange>,
     /// Whether the formatting has currently been disabled. This should occur when we see the relevant comment.
     formatting_disabled: bool,
+    comment_controls: std::sync::Arc<crate::comment_reflow::CommentControls>,
     fusion_stack: Vec<bool>,
     fusion_calls: std::sync::Arc<std::collections::HashSet<usize>>,
     excluded_fusion_names: std::collections::HashSet<String>,
@@ -38,10 +39,23 @@ impl Context {
             config: std::sync::Arc::new(config),
             range,
             formatting_disabled: false,
+            comment_controls: std::sync::Arc::new(crate::comment_reflow::CommentControls::default()),
             fusion_stack: Vec::new(),
             fusion_calls: std::sync::Arc::new(std::collections::HashSet::new()),
             excluded_fusion_names: std::collections::HashSet::new(),
         }
+    }
+
+    pub(crate) fn with_comment_controls(
+        mut self,
+        controls: crate::comment_reflow::CommentControls,
+    ) -> Self {
+        self.comment_controls = std::sync::Arc::new(controls);
+        self
+    }
+
+    pub(crate) fn comment_controls(&self) -> &crate::comment_reflow::CommentControls {
+        &self.comment_controls
     }
 
     pub fn with_fusion_calls(mut self, calls: std::collections::HashSet<usize>) -> Self {
@@ -67,7 +81,7 @@ impl Context {
     }
 
     /// Determines whether we need to toggle whether formatting is enabled or disabled.
-    /// Formatting is toggled on/off whenever we see a `-- stylua: ignore start` or `-- stylua: ignore end` comment respectively.
+    /// Formatting is toggled by `-- [styluau] ignore start` and `-- [styluau] ignore end`.
     // To preserve immutability of Context, we return a new Context with the `formatting_disabled` field toggled or left the same
     // where necessary. Context is cheap so this is reasonable to do.
     pub fn check_toggle_formatting(&self, node: &impl Node) -> Self {
@@ -90,9 +104,9 @@ impl Context {
 
         // Work through all the lines and update the state as necessary
         for line in comment_lines {
-            if matches!(line, "styluau: ignore start" | "stylua: ignore start") {
+            if matches!(line, "[styluau] ignore start" | "stylua: ignore start") {
                 formatting_disabled = true;
-            } else if matches!(line, "styluau: ignore end" | "stylua: ignore end") {
+            } else if matches!(line, "[styluau] ignore end" | "stylua: ignore end") {
                 formatting_disabled = false;
             }
         }
@@ -113,7 +127,7 @@ impl Context {
                 _ => continue,
             };
             for line in comment.lines().map(str::trim) {
-                let Some(directive) = line.strip_prefix("styluau: fusion ") else {
+                let Some(directive) = line.strip_prefix("[styluau] fusion ") else {
                     continue;
                 };
                 match directive {
@@ -176,7 +190,7 @@ impl Context {
             .map(|line| line.trim());
 
             for line in comment_lines {
-                if matches!(line, "styluau: ignore" | "stylua: ignore") {
+                if matches!(line, "[styluau] ignore" | "stylua: ignore") {
                     return FormatNode::Skip;
                 }
             }

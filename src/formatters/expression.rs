@@ -840,20 +840,38 @@ fn format_interpolated_string(
 
     let mut segments = Vec::new();
     for segment in interpolated_string.segments() {
-        let literal = format_token_reference(ctx, &segment.literal, shape);
-        shape = shape + literal.to_string().len();
+        let mut literal = format_token_reference(ctx, &segment.literal, shape);
+        if literal.has_trailing_comments(CommentSearch::Single) {
+            literal = literal.update_trailing_trivia(FormatTriviaType::Append(vec![
+                create_newline_trivia(ctx),
+                create_indent_trivia(ctx, shape),
+            ]));
+        }
+        shape = shape.take_last_line(&literal);
 
-        let mut expression = format_expression(ctx, &segment.expression, shape);
-        shape = shape.take_last_line(&expression);
+        let spaced = ctx.config().space_inside_interpolation;
+        let mut expression =
+            format_expression(ctx, &segment.expression, shape + if spaced { 2 } else { 0 });
 
-        // If expression is a table constructor, then ensure a space is added beforehand
-        // since `{{` syntax is not permitted
-        if let Expression::TableConstructor { .. } = expression {
+        // Luau requires a space before a table constructor to avoid `{{` syntax.
+        if spaced || matches!(expression, Expression::TableConstructor { .. }) {
             expression =
                 expression.update_leading_trivia(FormatTriviaType::Append(vec![Token::new(
                     TokenType::spaces(1),
-                )]))
+                )]));
         }
+        if expression.has_trailing_comments(CommentSearch::Single) {
+            expression = expression.update_trailing_trivia(FormatTriviaType::Append(vec![
+                create_newline_trivia(ctx),
+                create_indent_trivia(ctx, shape),
+            ]));
+        } else if spaced {
+            expression =
+                expression.update_trailing_trivia(FormatTriviaType::Append(vec![Token::new(
+                    TokenType::spaces(1),
+                )]));
+        }
+        shape = shape.take_last_line(&expression);
 
         segments.push(InterpolatedStringSegment {
             literal,

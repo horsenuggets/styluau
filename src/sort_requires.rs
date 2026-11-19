@@ -110,10 +110,10 @@ enum BlockPartition {
     Other(Vec<StmtSemicolon>),
 }
 
-/// Whether a statement's leading trivia contains a Fusion directive. Sorting moves a group's
-/// leading trivia to whichever statement sorts first, so a directive-carrying require must stay
-/// attached to its own statement rather than moving to a sibling.
-fn has_fusion_directive(stmt: &Stmt) -> bool {
+/// Whether a statement's leading trivia contains a Fusion or comment-reflow directive.
+/// Sorting moves a group's leading trivia to whichever statement sorts first, so a
+/// directive-carrying require must stay attached to its own statement, not a sibling.
+fn has_formatting_directive(stmt: &Stmt) -> bool {
     stmt.tokens()
         .next()
         .into_iter()
@@ -124,7 +124,10 @@ fn has_fusion_directive(stmt: &Stmt) -> bool {
             _ => None,
         })
         .flat_map(|comment| comment.lines())
-        .any(|line| line.trim().starts_with("styluau: fusion "))
+        .any(|line| {
+            let line = line.trim();
+            line.starts_with("[styluau] fusion ") || line.starts_with("[styluau] comments ")
+        })
 }
 
 fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
@@ -138,7 +141,7 @@ fn partition_nodes_into_groups(block: &Block) -> Vec<BlockPartition> {
             // Either, the parts list is empty, the last part was a BlockPartition::Other,
             // the last part group was a different kind, or,
             // there is > 1 line in between the previous require and this one
-            let current_has_directive = has_fusion_directive(&stmt.0);
+            let current_has_directive = has_formatting_directive(&stmt.0);
             let create_new_block = previous_has_directive
                 || current_has_directive
                 || match parts.last() {
