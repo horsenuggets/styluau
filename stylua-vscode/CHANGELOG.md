@@ -5,11 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Main StyLua
+## Formatter Changes
 
-To view the changelog of the StyLua binary, see [here](https://github.com/JohnnyMorganz/StyLua/blob/main/CHANGELOG.md)
+See the [formatter changelog](../CHANGELOG.md) for changes to the StyLuau binary.
 
 ## [Unreleased]
+
+## [2.1.0] - 2026-11-19
+
+### Added
+
+- Packaged a universal StyLuau VSIX with the fork's GitHub releases.
+- Added fork-aware binary discovery, configuration compatibility, and recovery commands.
+
+### Changed
+
+- Use the extension version `2.<fork>.<patch>` for each formatter fork release.
 
 ## [1.7.2] - 2026-05-16
 
