@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0-horse.1.0] - 2026-11-19
+
+### Added
+
+- Packaged the StyLuau executable and VS Code extension together in GitHub releases.
+- Added configurable final table commas, ordered file overrides, and Fusion formatting.
+- Added configurable interpolation spacing and Markdown-aware comment reflow.
+- Added bracket-style comment controls and a Luau formatting showcase.
+
+### Changed
+
+- Kept upstream configuration filenames and formatting-ignore directives compatible.
+- Restricted this fork's release workflow to GitHub artifacts without registry publishing.
+
+### Fixed
+
+- Preserved comments inside interpolated expressions and stable multiline comment layout.
+
 ## [2.6.0] - 2026-10-10
 
 ### Added

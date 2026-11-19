@@ -1,6 +1,6 @@
 [package]
 name = "styluau"
-version = "2.6.0"
+version = "2.6.0-horse.1.0"
 authors = ["JohnnyMorganz <johnnymorganz@outlook.com>"]
 description = "A code formatter for Luau"
 license = "MPL-2.0"
