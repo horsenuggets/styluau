@@ -5,9 +5,10 @@ expression: format(&contents)
 -- https://github.com/JohnnyMorganz/StyLua/issues/514
 local function escape(str)
 	return (
-		str:gsub("\\", "\\\\")
-			:gsub("(%c)%f[0-9]", longControlCharEscapesssssssssssssssssssss)
-			:gsub("%c", shortControlCharEscapes)
+		str:gsub("\\", "\\\\"):gsub("(%c)%f[0-9]", longControlCharEscapesssssssssssssssssssss):gsub(
+			"%c",
+			shortControlCharEscapes
+		)
 	)
 end
 

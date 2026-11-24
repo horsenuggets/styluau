@@ -13,6 +13,26 @@ fn format(input: &str, syntax: LuaVersion) -> String {
 
 #[test]
 #[cfg(feature = "luau")]
+fn test_long_floor_division_expressions() {
+    let config = Config {
+        syntax: LuaVersion::Luau,
+        indent_type: styluau_lib::IndentType::Spaces,
+        ..Config::default()
+    };
+    let input = "local veryLongVariableName = someLongFunctionName(argumentNumberOne, argumentNumberTwo) // anotherLongFunctionName(argumentNumberThree)\n";
+    let output = format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+    assert_eq!(
+        output,
+        "local veryLongVariableName = someLongFunctionName(argumentNumberOne, argumentNumberTwo)\n    // anotherLongFunctionName(argumentNumberThree)\n"
+    );
+    assert_eq!(
+        format_code(&output, config, None, OutputVerification::Full).unwrap(),
+        output
+    );
+}
+
+#[test]
+#[cfg(feature = "luau")]
 fn test_space_inside_interpolation() {
     assert!(!Config::default().space_inside_interpolation);
     for (input, compact, spaced) in [

@@ -108,6 +108,8 @@ pub struct Shape {
     /// Whether we should use simple heuristic checking.
     /// This is enabled when we are calling within a heuristic itself, to reduce the exponential blowup
     simple_heuristics: bool,
+    /// Prevent nested table previews from recursively trying both layouts.
+    table_layout_probe: bool,
 }
 
 impl Shape {
@@ -119,6 +121,7 @@ impl Shape {
             offset: 0,
             column_width: ctx.config().column_width,
             simple_heuristics: false,
+            table_layout_probe: false,
         }
     }
 
@@ -201,6 +204,19 @@ impl Shape {
             simple_heuristics: true,
             ..*self
         }
+    }
+
+    #[must_use]
+    pub fn with_table_layout_probe(&self) -> Shape {
+        Self {
+            table_layout_probe: true,
+            ..*self
+        }
+    }
+
+    #[must_use]
+    pub fn is_table_layout_probe(&self) -> bool {
+        self.table_layout_probe
     }
 
     /// Resets the offset for the shape

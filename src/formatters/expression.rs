@@ -32,8 +32,8 @@ use crate::{
         general::{format_contained_span, format_end_token, format_token_reference, EndTokenType},
         table::format_table_constructor,
         trivia::{
-            strip_leading_trivia, strip_trivia, FormatTriviaType, UpdateLeadingTrivia,
-            UpdateTrailingTrivia, UpdateTrivia,
+            strip_leading_trivia, strip_leading_whitespace, strip_trivia, FormatTriviaType,
+            UpdateLeadingTrivia, UpdateTrailingTrivia, UpdateTrivia,
         },
         trivia_util::{
             self, contains_comments, prepend_newline_indent, take_leading_comments,
@@ -88,6 +88,8 @@ enum ExpressionContext {
 }
 
 pub fn format_binop(ctx: &Context, binop: &BinOp, shape: Shape) -> BinOp {
+    let binop = strip_leading_whitespace(binop);
+    let binop = &binop;
     fmt_op!(ctx, BinOp, binop, shape, {
         And = " and ",
         Caret = " ^ ",
@@ -198,6 +200,13 @@ fn format_expression_internal(
     context: ExpressionContext,
     shape: Shape,
 ) -> Expression {
+    let cleaned;
+    let expression = if matches!(context, ExpressionContext::UnaryOrBinary) {
+        cleaned = strip_leading_whitespace(expression);
+        &cleaned
+    } else {
+        expression
+    };
     match expression {
         Expression::Function(anonymous_function) => {
             Expression::Function(format_anonymous_function(ctx, anonymous_function, shape))
@@ -1015,27 +1024,53 @@ fn hang_binop(ctx: &Context, binop: BinOp, shape: Shape, rhs: &Expression) -> Bi
     )
 }
 
-/// Finds the length of the expression which matches the precedence level of the provided binop
-fn binop_expression_length(expression: &Expression, top_binop: &BinOp) -> usize {
+fn formatted_expression_length(ctx: &Context, expression: &Expression, shape: Shape) -> usize {
+    if shape.using_simple_heuristics() {
+        // Speculative widths must not recursively format the same descendants again.
+        // Token widths ignore input trivia; one separator per token is a cheap estimate.
+        return expression
+            .tokens()
+            .map(|token| token.token().to_string().len() + 1)
+            .sum::<usize>()
+            .saturating_sub(1);
+    }
+    let formatted = format_expression(
+        ctx,
+        expression,
+        Shape::new(ctx)
+            .with_simple_heuristics()
+            .with_table_layout_probe()
+            .with_infinite_width(),
+    );
+    strip_trivia(&formatted).to_string().len()
+}
+
+/// Finds the length of the expression which matches the precedence level of the provided binop.
+fn binop_expression_length(
+    ctx: &Context,
+    expression: &Expression,
+    top_binop: &BinOp,
+    shape: Shape,
+) -> usize {
     match expression {
         Expression::BinaryOperator { lhs, binop, rhs } => {
             if binop.precedence() >= top_binop.precedence()
                 && binop.is_right_associative() == top_binop.is_right_associative()
             {
                 if binop.is_right_associative() {
-                    binop_expression_length(rhs, top_binop)
+                    binop_expression_length(ctx, rhs, top_binop, shape)
                         + strip_trivia(binop).to_string().len() + 2 // 2 = space before and after binop
-                        + strip_trivia(&**lhs).to_string().len()
+                        + formatted_expression_length(ctx, lhs, shape)
                 } else {
-                    binop_expression_length(lhs, top_binop)
+                    binop_expression_length(ctx, lhs, top_binop, shape)
                         + strip_trivia(binop).to_string().len() + 2 // 2 = space before and after binop
-                        + strip_trivia(&**rhs).to_string().len()
+                        + formatted_expression_length(ctx, rhs, shape)
                 }
             } else {
                 0
             }
         }
-        _ => strip_trivia(expression).to_string().len(),
+        _ => formatted_expression_length(ctx, expression, shape),
     }
 }
 
@@ -1138,6 +1173,7 @@ impl LeftmostRangeHang {
 }
 
 fn is_hang_binop_over_width(
+    ctx: &Context,
     shape: Shape,
     expression: &Expression,
     top_binop: &BinOp,
@@ -1150,7 +1186,7 @@ fn is_hang_binop_over_width(
     };
 
     shape
-        .add_width(binop_expression_length(expression, top_binop))
+        .add_width(binop_expression_length(ctx, expression, top_binop, shape))
         .over_budget()
 }
 
@@ -1215,10 +1251,8 @@ fn hang_binop_expression(
             };
 
             // TODO/FIXME: using test_shape here leads to too high of an indent level, causing the expression to hang unnecessarily
-            let over_column_width =
-                is_hang_binop_over_width(test_shape, &full_expression, &binop, lhs_range);
             let should_hang = same_op_level
-                || over_column_width
+                || is_hang_binop_over_width(ctx, test_shape, &full_expression, &binop, lhs_range)
                 || binop_expression_contains_comments(&full_expression, &binop);
 
             // Only use the indented shape if we are planning to hang
@@ -1529,7 +1563,11 @@ fn format_hanging_expression_(
                     && binop_precedence_level(&new_rhs) >= binop.precedence())
                 || contains_comments(binop)
                 || lhs.has_trailing_comments(CommentSearch::All)
-                || (shape.take_last_line(&lhs) + format!("{binop}{rhs}").len()).over_budget()
+                || (shape.take_last_line(&lhs)
+                    + strip_trivia(&new_binop).to_string().len()
+                    + 2
+                    + strip_trivia(&new_rhs).to_string().len())
+                .over_budget()
             {
                 let hanging_shape = shape.reset() + strip_trivia(binop).to_string().len() + 1;
                 new_binop = hang_binop(ctx, binop.to_owned(), shape, rhs);

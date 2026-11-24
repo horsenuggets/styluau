@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Stopped `--verify` from rejecting the intentional reorder made by requires sorting.
+- Used formatted widths for compact tables, call arguments, and binary expressions.
+- Stabilized nested assignments and call chains across repeated formatting passes.
+- Preserved documentation comment boundaries inside Luau `typeof` expressions.
+- Fixed a panic when hanging long Luau floor division expressions without Lua 5.3 support.
+
 ## [2.6.0-horse.1.0] - 2026-11-19
 
 ### Added

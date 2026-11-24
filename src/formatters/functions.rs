@@ -32,8 +32,8 @@ use crate::{
         stmt::format_stmt_no_trivia,
         table::format_table_constructor,
         trivia::{
-            strip_leading_trivia, strip_trivia, FormatTriviaType, UpdateLeadingTrivia,
-            UpdateTrailingTrivia,
+            strip_leading_trivia, strip_leading_whitespace, strip_trivia, FormatTriviaType,
+            UpdateLeadingTrivia, UpdateTrailingTrivia,
         },
         trivia_util::{
             self, CommentSearch, GetLeadingTrivia, GetTrailingTrivia, HasInlineComments,
@@ -272,16 +272,10 @@ fn function_args_multiline_heuristic(
         return false;
     }
 
-    // Format all the arguments on an infinite width, so that we can prepare them and check to see whether they
-    // need expanding. We will ignore punctuation for now
+    // Preview arguments at the available width so nested calls see the same table layout
+    // as the final pass. Simple heuristics prevent recursive speculative argument layouts.
     let first_iter_formatted_arguments = arguments.clone().into_pairs().map(|value| {
-        value.map(|argument| {
-            format_expression(
-                ctx,
-                &argument,
-                shape.with_simple_heuristics().with_infinite_width(),
-            )
-        })
+        value.map(|argument| format_expression(ctx, &argument, shape.with_simple_heuristics()))
     });
 
     // Apply some heuristics to determine whether we should expand the function call
@@ -329,9 +323,15 @@ fn function_args_multiline_heuristic(
             }
             Expression::TableConstructor(table) => {
                 // Check to see whether it has been expanded (there is a newline after the start brace)
-                let is_expanded = trivia_util::trivia_contains_newline(
+                let input_expanded = trivia_util::trivia_contains_newline(
                     table.braces().tokens().0.trailing_trivia(),
                 );
+                // Measure the table at its actual argument position. Testing it on a separate
+                // line can choose a layout that changes after a surrounding assignment hangs.
+                let is_expanded = input_expanded
+                    || singleline_shape
+                        .add_width(argument.to_string().len() + PAREN_LEN)
+                        .over_budget();
 
                 if is_expanded {
                     // If we have a mixture of multiline args, and other arguments
@@ -341,7 +341,11 @@ fn function_args_multiline_heuristic(
                     }
 
                     // Include the first brace to check if we are over the column width already
-                    singleline_shape = singleline_shape.take_first_line(table);
+                    singleline_shape = if input_expanded {
+                        singleline_shape.take_first_line(table)
+                    } else {
+                        singleline_shape + BRACKET_LEN
+                    };
                     if singleline_shape.over_budget() {
                         return true;
                     }
@@ -371,7 +375,12 @@ fn function_args_multiline_heuristic(
                 ) {
                     // If the argument is complex (spans multiple lines), then we will immediately
                     // exit and span multiline - it is most likely too complex to keep going forward.
-                    if is_complex_arg(expression) && arguments.len() > 1 {
+                    let multiline_prefix = matches!(expression,
+                        Expression::FunctionCall(call)
+                            if matches!(call.prefix(), Prefix::Expression(_))
+                                && strip_trivia(call.prefix()).to_string().contains('\n')
+                    );
+                    if is_complex_arg(expression) && (arguments.len() > 1 || multiline_prefix) {
                         return true;
                     }
                 }
@@ -546,7 +555,8 @@ pub fn format_function_args(
                     start_parens
                 };
 
-                let end_parens = format_token_reference(ctx, end_parens, shape);
+                let end_parens = strip_leading_whitespace(end_parens);
+                let end_parens = format_token_reference(ctx, &end_parens, shape);
                 let parentheses = ContainedSpan::new(start_parens, end_parens);
 
                 let mut arguments =
@@ -559,14 +569,7 @@ pub fn format_function_args(
                 // this can be removed.
                 for argument in arguments.pairs_mut() {
                     let expression = argument.value_mut();
-                    let trivia = expression
-                        .leading_trivia()
-                        .iter()
-                        .skip_while(|trivia| trivia_util::trivia_is_whitespace(trivia))
-                        .map(|x| x.to_owned())
-                        .collect();
-                    *expression =
-                        expression.update_leading_trivia(FormatTriviaType::Replace(trivia));
+                    *expression = strip_leading_whitespace(expression);
                 }
 
                 FunctionArgs::Parentheses {
@@ -1103,9 +1106,15 @@ pub fn format_function_call(
             // Or b), one of the INTERNAL (not the last call) method call's arguments is multiline [function/table]
 
             // Create a temporary formatted version of suffixes to use for this check
+            let mut preview_shape = shape.take_last_line(&strip_leading_trivia(&formatted_prefix));
             let formatted_suffixes: Vec<_> = function_call
                 .suffixes()
-                .map(|x| format_suffix(ctx, x, shape, FunctionCallNextNode::None)) // TODO: is this the right shape to use?
+                .map(|suffix| {
+                    let formatted =
+                        format_suffix(ctx, suffix, preview_shape, FunctionCallNextNode::None);
+                    preview_shape = preview_shape.take_last_line(&formatted);
+                    formatted
+                })
                 .collect();
             let preliminary_function_call = FunctionCall::new(formatted_prefix.to_owned())
                 .with_suffixes(formatted_suffixes.to_owned());
@@ -1115,7 +1124,8 @@ pub fn format_function_call(
             keep_first_call_inlined = should_inline_prefix(ctx, function_call.prefix())
                 && !shape
                     .take_last_line(&strip_leading_trivia(&formatted_prefix))
-                    .test_over_budget(&formatted_suffixes.into_iter().next().unwrap());
+                    .take_first_line(&strip_trivia(&formatted_suffixes[0]))
+                    .over_budget();
 
             if shape
                 .take_first_line(&strip_trivia(&preliminary_function_call))

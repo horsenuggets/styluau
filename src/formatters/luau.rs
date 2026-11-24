@@ -605,7 +605,26 @@ fn format_type_info_internal(
                     (braces, Punctuated::new())
                 }
                 TableType::SingleLine => {
-                    format_singleline_table(ctx, braces, fields, format_type_field, shape)
+                    let (formatted_braces, formatted_fields) = format_singleline_table(
+                        ctx,
+                        braces,
+                        fields,
+                        format_type_field,
+                        shape.with_table_layout_probe(),
+                    );
+                    let needs_expansion = !shape.is_table_layout_probe() && {
+                        let singleline = TypeInfo::Table {
+                            braces: formatted_braces.clone(),
+                            fields: formatted_fields.clone(),
+                        };
+                        let singleline = strip_trivia(&singleline);
+                        singleline.to_string().contains('\n') || shape.test_over_budget(&singleline)
+                    };
+                    if needs_expansion {
+                        format_multiline_table(ctx, braces, fields, format_type_field, shape)
+                    } else {
+                        (formatted_braces, formatted_fields)
+                    }
                 }
                 TableType::MultiLine => {
                     format_multiline_table(ctx, braces, fields, format_type_field, shape)
@@ -633,8 +652,44 @@ fn format_type_info_internal(
                 shape,
             );
             let shape = shape + 6; // 6 = "typeof"
-            let parentheses = format_contained_span(ctx, parentheses, shape);
-            let inner = Box::new(format_expression(ctx, inner, shape + 1)); // 1 = "("
+            let (start_parens, end_parens) = parentheses.tokens();
+            let formatted_inner = format_expression(ctx, inner, shape + 1);
+            let (parentheses, inner) = if formatted_inner.has_leading_comments(CommentSearch::All)
+                || formatted_inner.has_trailing_comments(CommentSearch::All)
+                || start_parens.has_trailing_comments(CommentSearch::All)
+                || end_parens.has_leading_comments(CommentSearch::All)
+            {
+                let mut expressions = Punctuated::new();
+                expressions.push(Pair::new(inner.as_ref().clone(), None));
+                let (parentheses, expressions) = format_contained_punctuated_multiline(
+                    ctx,
+                    parentheses,
+                    &expressions,
+                    format_expression,
+                    shape,
+                );
+                let (expression, punctuation) =
+                    expressions.into_pairs().next().unwrap().into_tuple();
+                let punctuation = punctuation.unwrap();
+                let trailing_trivia = punctuation
+                    .leading_trivia()
+                    .chain(std::iter::once(punctuation.token()))
+                    .chain(punctuation.trailing_trivia())
+                    .cloned()
+                    .collect();
+                (
+                    parentheses,
+                    Box::new(
+                        expression
+                            .update_trailing_trivia(FormatTriviaType::Append(trailing_trivia)),
+                    ),
+                )
+            } else {
+                (
+                    format_contained_span(ctx, parentheses, shape),
+                    Box::new(formatted_inner),
+                )
+            };
             TypeInfo::Typeof {
                 typeof_token,
                 parentheses,
