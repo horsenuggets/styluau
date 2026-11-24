@@ -47,12 +47,17 @@ fn format_field_expression_value(
     let multiline_comments = expression.trailing_comments_search(CommentSearch::Multiline);
     let trailing_trivia = FormatTriviaType::Replace(multiline_comments);
 
+    if shape.using_simple_heuristics() {
+        return format_expression(ctx, expression, shape).update_trailing_trivia(trailing_trivia);
+    }
+
     if trivia_util::can_hang_expression(expression) {
         if expression.has_inline_comments() {
             hang_expression(ctx, expression, shape, Some(1)).update_trailing_trivia(trailing_trivia)
         } else {
-            let singleline_value = format_expression(ctx, expression, shape)
-                .update_trailing_trivia(trailing_trivia.clone());
+            let singleline_value =
+                format_expression(ctx, expression, shape.with_simple_heuristics())
+                    .update_trailing_trivia(trailing_trivia.clone());
             let hanging_value = hang_expression(ctx, expression, shape, Some(1))
                 .update_trailing_trivia(trailing_trivia);
 
@@ -594,13 +599,35 @@ pub fn format_table_constructor(
             let braces = create_table_braces(ctx, start_brace, end_brace, table_type, shape);
             (braces, Punctuated::new())
         }
-        TableType::SingleLine => format_singleline_table(
-            ctx,
-            table_constructor.braces(),
-            table_constructor.fields(),
-            format_field,
-            shape,
-        ),
+        TableType::SingleLine => {
+            let (braces, fields) = format_singleline_table(
+                ctx,
+                table_constructor.braces(),
+                table_constructor.fields(),
+                format_field,
+                shape.with_table_layout_probe(),
+            );
+            // Compact input can overflow only after formatting adds spaces. Nested previews
+            // must not recursively try both layouts again.
+            let needs_expansion = !shape.is_table_layout_probe() && {
+                let singleline = TableConstructor::new()
+                    .with_braces(braces.clone())
+                    .with_fields(fields.clone());
+                let singleline = strip_trivia(&singleline);
+                singleline.to_string().contains('\n') || shape.test_over_budget(&singleline)
+            };
+            if needs_expansion {
+                format_multiline_table(
+                    ctx,
+                    table_constructor.braces(),
+                    table_constructor.fields(),
+                    format_field,
+                    shape,
+                )
+            } else {
+                (braces, fields)
+            }
+        }
         TableType::MultiLine => format_multiline_table(
             ctx,
             table_constructor.braces(),

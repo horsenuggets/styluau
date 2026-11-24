@@ -1,3 +1,5 @@
+use crate::formatters::trivia_util::{trivia_is_whitespace, GetLeadingTrivia};
+
 #[cfg(feature = "lua54")]
 use full_moon::ast::lua54::Attribute;
 #[cfg(feature = "luau")]
@@ -42,6 +44,15 @@ where
     T: UpdateLeadingTrivia,
 {
     item.update_leading_trivia(FormatTriviaType::Replace(vec![]))
+}
+
+pub fn strip_leading_whitespace<T: GetLeadingTrivia + UpdateLeadingTrivia>(item: &T) -> T {
+    item.update_leading_trivia(FormatTriviaType::Replace(
+        item.leading_trivia()
+            .into_iter()
+            .skip_while(trivia_is_whitespace)
+            .collect(),
+    ))
 }
 
 pub fn strip_trailing_trivia<T>(item: &T) -> T
@@ -205,7 +216,7 @@ define_update_trivia!(BinOp, |this, leading, trailing| {
         TwoEqual,
         #[cfg(feature = "lua53")]
         Ampersand,
-        #[cfg(feature = "lua53")]
+        #[cfg(any(feature = "luau", feature = "lua53"))]
         DoubleSlash,
         #[cfg(feature = "lua53")]
         DoubleLessThan,

@@ -29,11 +29,14 @@ impl AstVerifier {
     }
 }
 
-fn remove_parentheses(expression: Expression) -> Expression {
-    match expression {
-        Expression::Parentheses { expression, .. } => *expression,
-        _ => expression,
+fn remove_parentheses(mut expression: Expression) -> Expression {
+    while let Expression::Parentheses {
+        expression: inner, ..
+    } = expression
+    {
+        expression = *inner;
     }
+    expression
 }
 
 #[cfg(feature = "luau")]
@@ -370,11 +373,18 @@ mod tests {
 
     #[test]
     fn test_equivalent_conditions() {
-        let input_ast = full_moon::parse("if (true) then return end").unwrap();
-        let output_ast = full_moon::parse("if true then return end").unwrap();
+        for depth in 1..=8 {
+            let input = format!(
+                "if {}true{} then return end",
+                "(".repeat(depth),
+                ")".repeat(depth)
+            );
+            let input_ast = full_moon::parse(&input).unwrap();
+            let output_ast = full_moon::parse("if true then return end").unwrap();
 
-        let mut ast_verifier = AstVerifier::new();
-        assert!(ast_verifier.compare(input_ast, output_ast));
+            let mut ast_verifier = AstVerifier::new();
+            assert!(ast_verifier.compare(input_ast, output_ast));
+        }
     }
 
     #[test]

@@ -474,13 +474,6 @@ pub fn format_ast(
     )?;
     let analyze_fusion = directives.can_enable_fusion || config.fusion;
 
-    // Clone the input AST only if we are verifying, to later use for checking
-    let input_ast_for_verification = if let OutputVerification::Full = verify_output {
-        Some(input_ast.to_owned())
-    } else {
-        None
-    };
-
     let syntax = config.syntax;
     let sort_requires_enabled = config.sort_requires.enabled;
     let ctx = Context::new(config, range).with_comment_controls(comment_controls);
@@ -489,6 +482,14 @@ pub fn format_ast(
     let input_ast = match sort_requires_enabled {
         true => sort_requires::sort_requires(&ctx, input_ast),
         false => input_ast,
+    };
+
+    // Clone the input AST only if we are verifying, to later use for checking. Sorting is an
+    // intentional reorder, so the baseline is taken after it and only formatting is verified.
+    let input_ast_for_verification = if let OutputVerification::Full = verify_output {
+        Some(input_ast.to_owned())
+    } else {
+        None
     };
 
     let ctx = if analyze_fusion {
@@ -588,5 +589,27 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output, "local x = 1\n");
+    }
+
+    #[test]
+    fn test_ast_verification_accepts_sorted_requires() {
+        let config = Config {
+            sort_requires: SortRequiresConfig { enabled: true },
+            ..Config::default()
+        };
+        for (input, expected) in [
+            (
+                "local B = require(b)\nlocal A = require(a)\n",
+                "local A = require(a)\nlocal B = require(b)\n",
+            ),
+            (
+                "local StarterGui = game:GetService(\"StarterGui\")\nlocal RunService = game:GetService(\"RunService\")\n",
+                "local RunService = game:GetService(\"RunService\")\nlocal StarterGui = game:GetService(\"StarterGui\")\n",
+            ),
+        ] {
+            let output =
+                format_code(input, config.clone(), None, OutputVerification::Full).unwrap();
+            assert_eq!(output, expected);
+        }
     }
 }

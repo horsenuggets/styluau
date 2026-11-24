@@ -316,11 +316,21 @@ fn attempt_assignment_tactics(
             let equal_token_shape = equal_token_shape
                 .take_first_line(&strip_trailing_trivia(&hanging_equal_token_expr_list));
 
-            // If hanging at the equal token doesn't go over budget, and it produces less lines than hanging normally
-            // then go for that instead
-            if !equal_token_shape.over_budget()
+            let inline_layout = strip_trivia(&expr_list).to_string();
+            let hanging_layout = strip_trivia(&hanging_equal_token_expr_list).to_string();
+            let opens_table = [&inline_layout, &hanging_layout].iter().all(|layout| {
+                layout
+                    .lines()
+                    .next()
+                    .is_some_and(|line| line.trim_end().ends_with('{'))
+            });
+
+            // A fitting table opening should stay beside the assignment. Hanging can change
+            // descendant layouts, whose line counts depend on preserved multiline tables.
+            if !opens_table
+                && !equal_token_shape.over_budget()
                 && format!("{hanging_equal_token_expr_list}").lines().count() + 1 // Add an extra line since we are hanging
-                    < format!("{expr_list}").lines().count()
+                    < inline_layout.lines().count()
                 || formatting_shape.over_budget()
             {
                 (hanging_equal_token_expr_list, hanging_equal_token)

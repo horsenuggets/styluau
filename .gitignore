@@ -1,3 +1,7 @@
 # Generated files
 __pycache__/
 /target/
+
+# Worktrees
+/.worktrees/
+/.wt/
