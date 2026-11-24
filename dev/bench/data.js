@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795114633627,
+  "lastUpdate": 1795562951905,
   "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
@@ -18521,6 +18521,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 17154767,
             "range": "± 315790",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1293db1015b51a008062edb8b41e636b967b6dde",
+          "message": "Fix formatting verification and one-pass layout stability (#5)\n\n* Verify formatting against normalized intentional transformations\n\nAccept configured require sorting and removal of nested parentheses without reporting false AST differences.\n\n* Stabilize formatting layouts and preserve Luau trivia\n\nMeasure formatted widths consistently, preserve comment boundaries and floor-division trivia, and bound recursive layout previews. Add regression coverage for one-pass stability and nested formatting performance.\n\n* Keep local worktrees out of repository changes",
+          "timestamp": "2026-11-24T17:27:12-06:00",
+          "tree_id": "a65499fba93719661b70654ff3e803779f08257a",
+          "url": "https://github.com/horsenuggets/styluau/commit/1293db1015b51a008062edb8b41e636b967b6dde"
+        },
+        "date": 1795562950701,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 22058134,
+            "range": "± 192787",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 206533509,
+            "range": "± 989381",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 19963780,
+            "range": "± 557540",
             "unit": "ns/iter"
           }
         ]
