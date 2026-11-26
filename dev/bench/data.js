@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795728064158,
+  "lastUpdate": 1795728247415,
   "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
@@ -18605,6 +18605,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 19825793,
             "range": "± 547522",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "13450693c152384cd6c4208bcd2cd0a9d8014e52",
+          "message": "Bump version to 2.6.0-horse.1.1 (#7)",
+          "timestamp": "2026-11-26T15:22:36-06:00",
+          "tree_id": "9ce1c1ce3adf614cdf357638853cb4651b5713f8",
+          "url": "https://github.com/horsenuggets/styluau/commit/13450693c152384cd6c4208bcd2cd0a9d8014e52"
+        },
+        "date": 1795728245897,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 16750396,
+            "range": "± 184257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 153108970,
+            "range": "± 4165132",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 16207519,
+            "range": "± 208489",
             "unit": "ns/iter"
           }
         ]
