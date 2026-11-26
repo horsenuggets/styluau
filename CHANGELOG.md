@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Let a trailing backslash keep a reflowed comment line from joining the next one, while
+  the lines on either side of a hard break still wrap at the comment width.
+
 ### Fixed
 
 - Stopped `--verify` from rejecting the intentional reorder made by requires sorting.

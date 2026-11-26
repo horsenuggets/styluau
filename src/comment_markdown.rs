@@ -5,7 +5,7 @@ use std::ops::Range;
 struct Paragraph {
     range: Option<Range<usize>>,
     protected: Vec<Range<usize>>,
-    hard_break: bool,
+    hard_breaks: Vec<Range<usize>>,
     quote_depth: usize,
 }
 
@@ -56,25 +56,65 @@ impl Paragraph {
         let Some(range) = paragraph.range else {
             return;
         };
-        if paragraph.hard_break {
-            return;
+        // Hard breaks end a line on purpose, so each line between them wraps on its own.
+        let mut segments = Vec::new();
+        let mut start = range.start;
+        for hard_break in &paragraph.hard_breaks {
+            // A backslash marker stays in its segment so wrapping keeps it on the same line.
+            let marker = source[hard_break.clone()].trim_end().len();
+            segments.push(start..hard_break.start + marker);
+            start = skip_quote_prefix(source, hard_break.end, range.end, paragraph.quote_depth);
+            while start < range.end && matches!(source.as_bytes()[start], b' ' | b'\t') {
+                start += 1;
+            }
         }
-        if let Some(reflowed) = format_paragraph(
-            source,
-            &range,
-            paragraph.protected,
-            paragraph.quote_depth,
-            width,
-        ) {
-            if reflowed != source[range.clone()] {
-                replacements.push((range, reflowed));
+        segments.push(start..range.end);
+        for segment in segments {
+            if segment.is_empty() {
+                continue;
+            }
+            let protected = paragraph
+                .protected
+                .iter()
+                .filter(|span| span.start >= segment.start && span.end <= segment.end)
+                .cloned()
+                .collect();
+            if let Some(reflowed) =
+                format_paragraph(source, &segment, protected, paragraph.quote_depth, width)
+            {
+                if reflowed != source[segment.clone()] {
+                    replacements.push((segment, reflowed));
+                }
             }
         }
     }
 }
 
+/// Drops whitespace after a line-ending backslash so it still forms a Markdown hard break.
+fn normalize_backslash_breaks(source: &str) -> String {
+    source
+        .split('\n')
+        .map(|line| {
+            let trimmed = line.trim_end_matches([' ', '\t']);
+            let backslashes = trimmed
+                .bytes()
+                .rev()
+                .take_while(|byte| *byte == b'\\')
+                .count();
+            if backslashes % 2 == 1 {
+                trimmed
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Reflows paragraph prose without rendering or rewriting Markdown block syntax.
 pub(crate) fn reflow_markdown(source: &str, width: usize) -> String {
+    let normalized = normalize_backslash_breaks(source);
+    let source = normalized.as_str();
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
     let mut frames = Vec::<Frame>::new();
@@ -128,8 +168,8 @@ pub(crate) fn reflow_markdown(source: &str, width: usize) -> String {
                 paragraph.protected.push(range);
             }
             Event::HardBreak if !blocked => {
-                paragraph.include(range, quote_depth);
-                paragraph.hard_break = true;
+                paragraph.include(range.clone(), quote_depth);
+                paragraph.hard_breaks.push(range);
             }
             _ => {
                 if !blocked {
@@ -251,6 +291,13 @@ fn format_paragraph(
     }
     if !word.is_empty() {
         words.push(word);
+    }
+    // A separated hard break marker must never wrap onto a line by itself.
+    if words.len() > 1 && words.last().is_some_and(|word| word == "\\") {
+        words.pop();
+        if let Some(last) = words.last_mut() {
+            last.push_str(" \\");
+        }
     }
 
     let mut output = String::new();
@@ -423,9 +470,55 @@ mod tests {
         for source in [
             "This line has two spaces.  \nThis line stays separate.\n",
             "This line has a backslash.\\\nThis line stays separate.\n",
+            "This line has a spaced backslash. \\\nThis line stays separate.\n",
         ] {
-            check(source, 12, source);
+            check(source, 90, source);
         }
+    }
+
+    #[test]
+    fn joins_lines_after_a_hard_break_but_not_across_it() {
+        check("a \\\nb\nc\n", 90, "a \\\nb c\n");
+        check("a\nb \\\nc\n", 90, "a b \\\nc\n");
+        check("first  \nsecond\nthird\n", 90, "first  \nsecond third\n");
+    }
+
+    #[test]
+    fn drops_whitespace_after_a_backslash_break() {
+        check("a \\ \nb\n", 90, "a \\\nb\n");
+        check("a \\\t\nb\n", 90, "a \\\nb\n");
+    }
+
+    #[test]
+    fn wraps_each_hard_break_segment_independently() {
+        check(
+            "one two three \\\nfour five\n",
+            9,
+            "one two\nthree \\\nfour five\n",
+        );
+        check("first  \nsecond third\n", 8, "first  \nsecond\nthird\n");
+        check(
+            "- first \\\n  second third\n",
+            10,
+            "- first \\\n  second\n  third\n",
+        );
+        check(
+            "> first \\\n> second third\n",
+            10,
+            "> first \\\n> second\n> third\n",
+        );
+    }
+
+    #[test]
+    fn keeps_a_backslash_marker_with_its_last_word() {
+        check("one two \\\nthree\n", 7, "one\ntwo \\\nthree\n");
+        check("one two\\\nthree\n", 7, "one\ntwo\\\nthree\n");
+    }
+
+    #[test]
+    fn treats_escaped_backslashes_as_text() {
+        check("a \\\\\nb\n", 90, "a \\\\ b\n");
+        check("a \\\\ \nb\n", 90, "a \\\\ b\n");
     }
 
     #[test]
@@ -459,6 +552,11 @@ mod tests {
             "> A quoted paragraph with enough words\n> and a soft continuation.\n",
             "- Parent item with words.\n  - Nested item with words.\n\n    Another nested paragraph with words.\n",
             "Use [a descriptive link label](https://example.invalid/path \"A title\") here.",
+            "First line with several words \\\nsecond line with more words.\n",
+            "First line with several words\\\nsecond line with more words.\n",
+            "First line with several words  \nsecond line with more words.\n",
+            "- Item with several words \\\n  continued item with words.\n",
+            "> Quoted with several words \\\n> more quoted words here.\n",
         ] {
             for width in 1..60 {
                 let result = reflow_markdown(source, width);
