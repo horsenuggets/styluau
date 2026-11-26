@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795562951905,
+  "lastUpdate": 1795728064158,
   "repoUrl": "https://github.com/horsenuggets/styluau",
   "entries": {
     "Rust Benchmark": [
@@ -18563,6 +18563,48 @@ window.BENCHMARK_DATA = {
             "name": "format nested_tables.lua",
             "value": 19963780,
             "range": "± 557540",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "69830673+horsenuggets@users.noreply.github.com",
+            "name": "HorseNuggets",
+            "username": "horsenuggets"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46646cdc928abc42c7b33bb9d42adfe04ba0284a",
+          "message": "Let a trailing backslash keep comment lines apart (#6)",
+          "timestamp": "2026-11-26T15:19:10-06:00",
+          "tree_id": "e93bb1a9f860036547c66c4a33111f5116cd5d77",
+          "url": "https://github.com/horsenuggets/styluau/commit/46646cdc928abc42c7b33bb9d42adfe04ba0284a"
+        },
+        "date": 1795728063182,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "format date.lua",
+            "value": 21909484,
+            "range": "± 171538",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format docgen.lua",
+            "value": 205117957,
+            "range": "± 878812",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "format nested_tables.lua",
+            "value": 19825793,
+            "range": "± 547522",
             "unit": "ns/iter"
           }
         ]
