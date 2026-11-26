@@ -255,6 +255,43 @@ fn markdown_hard_breaks_survive() {
 }
 
 #[test]
+fn backslash_keeps_a_comment_line_from_joining_the_next() {
+    check(
+        "-- a \\\n-- b\n-- c\nlocal x=1\n",
+        "-- a \\\n-- b c\nlocal x = 1\n",
+        config(90),
+    );
+    check(
+        "-- a \\ \n-- b\nlocal x=1\n",
+        "-- a \\\n-- b\nlocal x = 1\n",
+        config(90),
+    );
+    check(
+        "-- a\n-- b\nlocal x=1\n",
+        "-- a b\nlocal x = 1\n",
+        config(90),
+    );
+}
+
+#[test]
+fn backslash_lines_still_wrap_at_the_comment_width() {
+    check(
+        "-- one two three four \\\n-- five\nlocal x=1\n",
+        "-- one two three\n-- four \\\n-- five\nlocal x = 1\n",
+        config(16),
+    );
+}
+
+#[test]
+fn backslash_breaks_work_in_file_headers() {
+    check(
+        "--[[\n\nHeader\n\nFirst line \\\nSecond line\nthird line.\n\n--]]\nlocal x=1\n",
+        "--[[\n\nHeader\n\nFirst line \\\nSecond line third line.\n\n--]]\nlocal x = 1\n",
+        config(90),
+    );
+}
+
+#[test]
 fn one_shot_controls_target_comments_not_statements() {
     check(
         "-- [styluau] comments off\nlocal x=1\n-- first line\n-- second line\nlocal y=2\n-- third line\n-- fourth line\nlocal z=3\n",

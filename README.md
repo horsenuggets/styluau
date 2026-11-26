@@ -285,11 +285,19 @@ Blank lines separate paragraphs. Markdown list items beginning with markers such
 Headings, code fences, indented code, tables, hard line breaks and blockquote structure are
 preserved. Inline code and links are not split. Indivisible words may exceed the width,
 and preserving Markdown structure takes precedence over the target width. Paragraphs
-with explicit hard breaks or multiline code/link spans retain their deliberate layout.
-String contents, comments trailing code, annotations and formatter directives are not
-reflowed. Wrapped block comments put their delimiters on separate lines so subsequent
-formatting uses the same width budget. Bracket depth and file-header closing markers are
-preserved.
+with multiline code/link spans retain their deliberate layout. String contents, comments
+trailing code, annotations and formatter directives are not reflowed. Wrapped block
+comments put their delimiters on separate lines so subsequent formatting uses the same
+width budget. Bracket depth and file-header closing markers are preserved.
+
+End a comment line with a backslash to keep the next line from joining it. Whitespace
+after the backslash is removed, and the lines on either side of the break still wrap at
+the comment width. Two trailing spaces work the same way, as in Markdown...
+
+```luau
+-- This line stays \
+-- separate from this one.
+```
 
 Use comment-only controls to preserve intentional layout without disabling code
 formatting...
