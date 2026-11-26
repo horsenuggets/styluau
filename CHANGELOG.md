@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0-horse.1.1] - 2026-11-26
+
 ### Changed
 
 - Let a trailing backslash keep a reflowed comment line from joining the next one, while

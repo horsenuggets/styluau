@@ -11,6 +11,12 @@ See the [formatter changelog](../CHANGELOG.md) for changes to the StyLuau binary
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-26
+
+### Changed
+
+- Bundled StyLuau `2.6.0-horse.1.1`.
+
 ## [2.1.0] - 2026-11-19
 
 ### Added
